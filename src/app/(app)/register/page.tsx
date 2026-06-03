@@ -93,19 +93,20 @@ export default function RegisterPage() {
             <Button onClick={downloadPDF} variant="outline" className="border-amber-600 text-amber-700">
               <FileText className="h-4 w-4 mr-2" />Download PDF
             </Button>
-            <Button
-              onClick={handleSendEmail}
-              variant="outline"
-              className="border-[#1e3a5f] text-[#1e3a5f]"
-              disabled={emailSending}
-            >
-              {emailSending ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
+            <div className="relative inline-block">
+              <Button
+                onClick={(e) => e.preventDefault()}
+                variant="outline"
+                className="border-[#1e3a5f] text-[#1e3a5f]"
+                disabled={true}
+              >
                 <Mail className="h-4 w-4 mr-2" />
-              )}
-              Send via Email
-            </Button>
+                Send via Email
+              </Button>
+              <span className="absolute -top-2 -right-2 bg-amber-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full z-10 pointer-events-none shadow-sm">
+                Coming Soon
+              </span>
+            </div>
           </div>
         </div>
 
