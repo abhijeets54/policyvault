@@ -80,20 +80,25 @@ export function MonthlyRegisterBanner() {
           <Button
             onClick={downloadPDF}
             variant="outline"
-            className="border-amber-600 text-amber-700 hover:bg-amber-50 text-sm"
+            className="border-amber-600 text-amber-700 hover:bg-amber-50 hover:text-amber-900 text-sm"
           >
             <FileText className="h-4 w-4 mr-2" />
             Download PDF
           </Button>
-          <Button
-            onClick={sendEmail}
-            variant="outline"
-            className="border-amber-600 text-amber-700 hover:bg-amber-50 text-sm"
-            disabled={emailSending}
-          >
-            <Mail className="h-4 w-4 mr-2" />
-            {emailSending ? 'Sending...' : 'Send via Email'}
-          </Button>
+          <div className="relative inline-block">
+            <Button
+              onClick={(e) => e.preventDefault()}
+              variant="outline"
+              className="border-amber-600 text-amber-700 hover:bg-amber-50 hover:text-amber-900 text-sm"
+              disabled={true}
+            >
+              <Mail className="h-4 w-4 mr-2" />
+              Send via Email
+            </Button>
+            <span className="absolute -top-2 -right-2 bg-amber-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full z-10 pointer-events-none shadow-sm">
+              Coming Soon
+            </span>
+          </div>
         </div>
       </div>
       {emailMsg && (
