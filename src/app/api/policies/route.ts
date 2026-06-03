@@ -72,10 +72,31 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
 
+    // Strip fields that don't exist as columns in the policies schema.
+    // ai_model_used and extraction_notes are returned by the AI extractor but
+    // are not schema columns — passing them to .insert() causes a PostgREST
+    // "column not found in schema cache" 500 error.
+    // We preserve both values inside extracted_fields (JSONB) so nothing is lost.
+    const {
+      ai_model_used,
+      extraction_notes,
+      extracted_fields: existingExtractedFields,
+      ...rest
+    } = body
+
+    // Merge ai_model_used + extraction_notes into extracted_fields for audit purposes
+    const extracted_fields = {
+      ...(existingExtractedFields && typeof existingExtractedFields === 'object'
+        ? existingExtractedFields
+        : {}),
+      ...(ai_model_used   !== undefined && { ai_model_used }),
+      ...(extraction_notes !== undefined && { extraction_notes }),
+    }
+
     // Force user_id to the authenticated user — never trust client
     const { data, error } = await supabase
       .from('policies')
-      .insert({ ...body, user_id: user.id })
+      .insert({ ...rest, extracted_fields, user_id: user.id })
       .select()
       .single()
 

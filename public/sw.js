@@ -21,7 +21,17 @@ self.addEventListener('fetch', event => {
   const { request } = event
   const url = new URL(request.url)
 
-  // Network-first for API routes (always fresh data)
+  // Skip non-same-origin requests entirely (Supabase, Google APIs, Groq, etc.).
+  // When event.respondWith() is NOT called the browser handles the request
+  // normally — no SW interception, no cache-first, no CSP collision.
+  // This was the root cause of the "Failed to fetch" on login: the SW was
+  // catching the auth/v1/token request and calling fetch() through its own
+  // cache-first path, which the page's CSP then blocked at sw.js:46.
+  if (url.origin !== self.location.origin) {
+    return
+  }
+
+  // Network-first for Next.js API routes (always fresh data)
   if (url.pathname.startsWith('/api/')) {
     event.respondWith(
       fetch(request).catch(() =>
@@ -33,7 +43,7 @@ self.addEventListener('fetch', event => {
     return
   }
 
-  // Network-first for HTML navigation (ensure fresh pages)
+  // Network-first for HTML navigation (always serve fresh pages)
   if (request.mode === 'navigate') {
     event.respondWith(
       fetch(request).catch(() => caches.match('/'))
@@ -41,7 +51,7 @@ self.addEventListener('fetch', event => {
     return
   }
 
-  // Cache-first for static assets
+  // Cache-first for same-origin static assets (JS, CSS, icons, fonts)
   event.respondWith(
     caches.match(request).then(cached => cached || fetch(request))
   )
