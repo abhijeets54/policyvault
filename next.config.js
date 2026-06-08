@@ -19,7 +19,7 @@ const supabaseWs = supabaseOrigin.replace(/^https/, 'wss')
 
 const nextConfig = {
   experimental: {
-    serverComponentsExternalPackages: ['pdf-parse', 'jspdf', 'jspdf-autotable'],
+    serverComponentsExternalPackages: ['pdf-parse', 'jspdf', 'jspdf-autotable', '@google/genai'],
   },
   async headers() {
     return [

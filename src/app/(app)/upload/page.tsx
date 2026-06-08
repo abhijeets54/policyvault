@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { VerificationForm } from '@/components/VerificationForm'
 import type { ExtractedPolicyData } from '@/lib/types'
 import { Upload, FileText, AlertCircle, CheckCircle } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
 
 interface UploadState {
   step: 'upload' | 'verification'
@@ -21,7 +22,7 @@ interface UploadState {
 }
 
 const EXTRACTION_STEPS = [
-  'Uploading document...',
+  'Uploading document to storage...',
   'AI is reading your policy...',
   'Extracting details...',
   'Done!',
@@ -57,9 +58,6 @@ export default function UploadPage() {
       fileSize: file.size,
     }))
 
-    const formData = new FormData()
-    formData.append('file', file)
-
     let step = 0
     const stepInterval = setInterval(() => {
       step = Math.min(step + 1, EXTRACTION_STEPS.length - 2)
@@ -67,17 +65,46 @@ export default function UploadPage() {
     }, 1500)
 
     try {
+      // ── Phase 1: Upload PDF directly to Supabase Storage from the client ──
+      // This bypasses Vercel's 4.5 MB serverless body limit entirely.
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('Not signed in. Please refresh and try again.')
+
+      const fileName = `${user.id}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`
+      const { data: uploadData, error: uploadErr } = await supabase.storage
+        .from('policies')
+        .upload(fileName, file, { contentType: 'application/pdf', upsert: false })
+
+      if (uploadErr) {
+        throw new Error(`Upload failed: ${uploadErr.message}`)
+      }
+
+      const pdfPath = uploadData.path
+
+      // ── Phase 2: Ask the server to run AI extraction on the stored file ──
+      // We only send the storage path (a short string) — no binary data.
+      setExtractionStep(1)
       const response = await fetch('/api/extract', {
         method: 'POST',
-        body: formData,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pdfPath }),
       })
 
       clearInterval(stepInterval)
       setExtractionStep(EXTRACTION_STEPS.length - 1)
 
       if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || 'Extraction failed')
+        // Server may return plain text on unexpected errors, so try JSON first.
+        let errorMessage = `Server error (${response.status})`
+        try {
+          const errBody = await response.json()
+          errorMessage = errBody.error || errorMessage
+        } catch {
+          const text = await response.text().catch(() => '')
+          if (text) errorMessage = text.slice(0, 200)
+        }
+        throw new Error(errorMessage)
       }
 
       const data = await response.json()

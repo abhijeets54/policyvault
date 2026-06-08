@@ -1,13 +1,9 @@
-// Note: pdf-parse is a CommonJS module — imported dynamically inside extractWithGroq()
-// to avoid Next.js Webpack bundling issues. It is listed in serverComponentsExternalPackages.
+// Note: pdf-parse is a CommonJS module — imported dynamically to avoid
+// Next.js Webpack bundling issues. Listed in serverComponentsExternalPackages.
 import type { ExtractedPolicyData } from '@/lib/types'
 
-// AI clients are intentionally NOT created at module level.
-// Per Next.js + Vercel best practices, env vars are only available
-// at request time, not during static build analysis.
-
 // ──────────────────────────────────────────────
-// THE EXTRACTION PROMPT — used for BOTH AI models
+// THE EXTRACTION PROMPT
 // ──────────────────────────────────────────────
 const EXTRACTION_PROMPT = `
 You are an expert insurance document parser for Indian insurance policies.
@@ -81,7 +77,6 @@ function parseExtractionResult(text: string): ExtractedPolicyData {
   try {
     return JSON.parse(clean) as ExtractedPolicyData
   } catch {
-    // Try to find JSON object in the response
     const match = clean.match(/\{[\s\S]*\}/)
     if (match) return JSON.parse(match[0]) as ExtractedPolicyData
     throw new Error('AI returned malformed JSON')
@@ -89,49 +84,28 @@ function parseExtractionResult(text: string): ExtractedPolicyData {
 }
 
 // ──────────────────────────────────────────────
-// PRIMARY: Gemini 2.5 Flash — handles PDFs natively via inlineData
-// ──────────────────────────────────────────────
-async function extractWithGemini(pdfBase64: string): Promise<ExtractedPolicyData> {
-  // Instantiate inside function — never at module level (build would fail without env vars)
-  const { GoogleGenerativeAI } = await import('@google/generative-ai')
-  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
-
-  const result = await model.generateContent([
-    {
-      inlineData: { data: pdfBase64, mimeType: 'application/pdf' },
-    },
-    EXTRACTION_PROMPT,
-  ])
-
-  return parseExtractionResult(result.response.text())
-}
-
-// ──────────────────────────────────────────────
-// FALLBACK: Groq Llama 4 Scout (text-only)
-//
-// Groq does NOT support PDFs via image_url — only image/* MIME types are
-// accepted for vision requests (per official Groq docs).
-// We use `pdf-parse` to extract raw text, then send it as a text prompt.
-// This is the officially supported approach and works reliably for
-// text-based Indian insurance PDFs.
+// PRIMARY: Groq Llama 4 Scout (text extraction)
 // ──────────────────────────────────────────────
 async function extractWithGroq(pdfBuffer: Buffer): Promise<ExtractedPolicyData> {
-  // Instantiate inside function — never at module level (build would fail without env vars)
+  const apiKey = process.env.GROQ_API_KEY
+  if (!apiKey) throw new Error('GROQ_API_KEY is not set')
+
   const Groq = (await import('groq-sdk')).default
-  const groq = new Groq({ apiKey: process.env.GROQ_API_KEY! })
+  const groq = new Groq({ apiKey })
 
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const pdfParse = require('pdf-parse') as (buf: Buffer) => Promise<{ text: string }>
   const pdfData = await pdfParse(pdfBuffer)
 
-  // Truncate to 20 000 chars — stays well within Llama 4 Scout's token budget
+  // Truncate to 20 000 chars — stays well within Llama 4 Scout's context
   const pdfText = pdfData.text.trim().slice(0, 20_000)
   if (!pdfText) throw new Error('pdf-parse extracted no text — PDF may be image-only')
 
+  console.log(`[extractor] Extracted ${pdfText.length} chars of text from PDF for Groq`)
+
   const response = await groq.chat.completions.create({
     model: 'meta-llama/llama-4-scout-17b-16e-instruct',
-    response_format: { type: 'json_object' }, // forces valid JSON output
+    response_format: { type: 'json_object' },
     messages: [
       {
         role: 'system',
@@ -144,52 +118,117 @@ async function extractWithGroq(pdfBuffer: Buffer): Promise<ExtractedPolicyData> 
         content: `${EXTRACTION_PROMPT}\n\nPOLICY TEXT:\n"""\n${pdfText}\n"""`,
       },
     ],
-    max_tokens: 2048,
+    max_tokens: 4096,
     temperature: 0.1,
   })
 
   const text = response.choices[0]?.message?.content || ''
+  if (!text) throw new Error('Groq returned empty response')
+
   return parseExtractionResult(text)
 }
 
 // ──────────────────────────────────────────────
-// MAIN EXPORT — tries Gemini, falls back to Groq
+// PRIMARY: Gemini 2.5 Flash via @google/genai SDK
+// ──────────────────────────────────────────────
+async function extractWithGemini(pdfBuffer: Buffer): Promise<ExtractedPolicyData> {
+  const apiKey = process.env.GEMINI_API_KEY
+  if (!apiKey) throw new Error('GEMINI_API_KEY is not set')
+
+  const { GoogleGenAI } = await import('@google/genai')
+  const ai = new GoogleGenAI({ apiKey })
+
+  const response = await ai.models.generateContent({
+    model: 'gemini-2.5-flash',
+    contents: [
+      { text: EXTRACTION_PROMPT },
+      {
+        inlineData: {
+          mimeType: 'application/pdf',
+          data: pdfBuffer.toString('base64'),
+        },
+      },
+    ],
+    config: { temperature: 0.1, maxOutputTokens: 4096 },
+  })
+
+  const text = response.text
+  if (!text) throw new Error('Gemini returned empty response')
+  return parseExtractionResult(text)
+}
+
+// ──────────────────────────────────────────────
+// MAIN EXPORT
+// Strategy: Size-based routing
+// If PDF > 4MB: Try Groq first, then Gemini
+// If PDF <= 4MB: Try Gemini first, then Groq
 // ──────────────────────────────────────────────
 export async function extractPolicyFromPDF(
   pdfBuffer: Buffer
 ): Promise<ExtractedPolicyData & { ai_model_used: string }> {
-  const pdfBase64 = pdfBuffer.toString('base64')
+  const sizeMb = pdfBuffer.length / (1024 * 1024)
+  const isLargePdf = sizeMb > 4.0 // Threshold set to 4 MB
 
-  // Try Gemini first
-  try {
-    const result = await extractWithGemini(pdfBase64)
+  console.log(`[extractor] PDF size: ${sizeMb.toFixed(2)} MB. isLargePdf: ${isLargePdf}`)
+
+  const runGemini = async () => {
+    console.log('[extractor] Trying Gemini 2.5 Flash...')
+    const result = await extractWithGemini(pdfBuffer)
+    console.log('[extractor] Gemini succeeded')
     return { ...result, ai_model_used: 'gemini-2.5-flash' }
-  } catch (geminiError) {
-    console.warn('Gemini extraction failed, trying Groq:', geminiError)
   }
 
-  // Fall back to Groq
-  try {
+  const runGroq = async () => {
+    console.log('[extractor] Trying Groq Llama 4 Scout...')
     const result = await extractWithGroq(pdfBuffer)
+    console.log('[extractor] Groq succeeded')
     return { ...result, ai_model_used: 'groq-llama-4-scout' }
-  } catch (groqError) {
-    console.error('Both AI extractors failed:', groqError)
-    // Return empty extraction so user can fill manually
-    return {
-      holder_name: null, holder_phone: null, holder_email: null,
-      holder_dob: null, holder_address: null, holder_pan: null,
-      policy_number: null, insurer_name: null, policy_type: null,
-      plan_name: null, sum_insured: null, premium_amount: null,
-      premium_frequency: null, gst_amount: null, total_premium: null,
-      issue_date: null, start_date: null, expiry_date: null,
-      vehicle_number: null, vehicle_make: null, vehicle_model: null,
-      vehicle_year: null, idv_value: null, engine_number: null,
-      chassis_number: null, family_members: [], sum_insured_per_member: null,
-      nominee_name: null, nominee_relation: null, death_benefit: null,
-      policy_term: null, premium_paying_term: null,
-      extraction_confidence: 'low',
-      extraction_notes: 'Automatic extraction failed. Please fill in the details manually.',
-      ai_model_used: 'none',
+  }
+
+  const defaultErrorResponse = {
+    holder_name: null, holder_phone: null, holder_email: null,
+    holder_dob: null, holder_address: null, holder_pan: null,
+    policy_number: null, insurer_name: null, policy_type: null,
+    plan_name: null, sum_insured: null, premium_amount: null,
+    premium_frequency: null, gst_amount: null, total_premium: null,
+    issue_date: null, start_date: null, expiry_date: null,
+    vehicle_number: null, vehicle_make: null, vehicle_model: null,
+    vehicle_year: null, idv_value: null, engine_number: null,
+    chassis_number: null, family_members: [], sum_insured_per_member: null,
+    nominee_name: null, nominee_relation: null, death_benefit: null,
+    policy_term: null, premium_paying_term: null,
+    extraction_confidence: 'low',
+    extraction_notes: 'Automatic extraction failed for both models. Please fill in the details manually.',
+    ai_model_used: 'none',
+  }
+
+  if (isLargePdf) {
+    // Large PDF: Groq first
+    try {
+      return await runGroq()
+    } catch (groqError) {
+      console.error('[extractor] Groq failed:', groqError instanceof Error ? groqError.message : groqError)
+      try {
+        console.log('[extractor] Falling back to Gemini...')
+        return await runGemini()
+      } catch (geminiError) {
+        console.error('[extractor] Gemini fallback failed:', geminiError instanceof Error ? geminiError.message : geminiError)
+        return defaultErrorResponse as ExtractedPolicyData & { ai_model_used: string }
+      }
+    }
+  } else {
+    // Small PDF: Gemini first
+    try {
+      return await runGemini()
+    } catch (geminiError) {
+      console.error('[extractor] Gemini failed:', geminiError instanceof Error ? geminiError.message : geminiError)
+      try {
+        console.log('[extractor] Falling back to Groq...')
+        return await runGroq()
+      } catch (groqError) {
+        console.error('[extractor] Groq fallback failed:', groqError instanceof Error ? groqError.message : groqError)
+        return defaultErrorResponse as ExtractedPolicyData & { ai_model_used: string }
+      }
     }
   }
 }
