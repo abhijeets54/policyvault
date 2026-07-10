@@ -186,7 +186,7 @@ export async function extractPolicyFromPDF(
   }
 
   const defaultErrorResponse = {
-    holder_name: null, holder_phone: null, holder_email: null,
+    referred_by: null, holder_name: null, holder_phone: null, holder_email: null,
     holder_dob: null, holder_address: null, holder_pan: null,
     policy_number: null, insurer_name: null, policy_type: null,
     plan_name: null, sum_insured: null, premium_amount: null,
