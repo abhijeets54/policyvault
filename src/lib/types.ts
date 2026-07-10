@@ -17,6 +17,7 @@ export interface Policy {
   updated_at: string
   user_id: string
   // Holder
+  referred_by: string | null
   holder_name: string | null
   holder_phone: string | null
   holder_email: string | null
@@ -97,6 +98,7 @@ export interface AlertLog {
 
 // What the AI returns after extracting from PDF
 export interface ExtractedPolicyData {
+  referred_by: string | null
   holder_name: string | null
   holder_phone: string | null
   holder_email: string | null

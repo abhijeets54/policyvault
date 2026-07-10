@@ -131,6 +131,7 @@ export default function RegisterPage() {
           <thead className="bg-gray-50">
             <tr>
               <th className="text-left p-3 font-medium text-gray-600">Sr.</th>
+              <th className="text-left p-3 font-medium text-gray-600">Referred By</th>
               <th className="text-left p-3 font-medium text-gray-600">Client</th>
               <th className="text-left p-3 font-medium text-gray-600">Phone</th>
               <th className="text-left p-3 font-medium text-gray-600">Policy #</th>
@@ -155,6 +156,7 @@ export default function RegisterPage() {
               policies.map((p, i) => (
                 <tr key={p.id} className="border-t hover:bg-gray-50">
                   <td className="p-3 text-gray-500">{i + 1}</td>
+                  <td className="p-3 text-gray-500">{p.referred_by || '—'}</td>
                   <td className="p-3 font-medium">{p.holder_name || '—'}</td>
                   <td className="p-3 text-gray-600">{p.holder_phone || '—'}</td>
                   <td className="p-3 font-mono text-xs">{p.policy_number || '—'}</td>

@@ -93,7 +93,7 @@ export function VerificationForm({ extracted, pdfUrl, onConfirm, onCancel, onSca
                 {extracted.extraction_confidence === 'medium' && 'Medium Confidence — Some fields may need correction'}
                 {extracted.extraction_confidence === 'low' && 'Low Confidence — Please review all fields'}
               </p>
-              <p className="text-sm text-gray-600">AI used: {extracted.ai_model_used}</p>
+
             </div>
           </div>
         </Card>
@@ -101,7 +101,7 @@ export function VerificationForm({ extracted, pdfUrl, onConfirm, onCancel, onSca
         {/* Extraction Notes */}
         {extracted.extraction_notes && (
           <Card className="p-4 bg-amber-50 border-amber-300">
-            <p className="text-sm font-semibold text-amber-900">⚠️ AI Notes:</p>
+            <p className="text-sm font-semibold text-amber-900">⚠️ Note:</p>
             <p className="text-sm text-amber-800">{extracted.extraction_notes}</p>
           </Card>
         )}
@@ -113,6 +113,14 @@ export function VerificationForm({ extracted, pdfUrl, onConfirm, onCancel, onSca
             <AccordionItem value="personal">
               <AccordionTrigger>Personal Information</AccordionTrigger>
               <AccordionContent className="space-y-3 pt-4">
+                <div>
+                  <Label>Referred By</Label>
+                  <Input
+                    value={formData.referred_by || ''}
+                    onChange={(e) => handleFieldChange('referred_by', e.target.value)}
+                    placeholder="Enter name"
+                  />
+                </div>
                 <div>
                   <Label>Full Name *</Label>
                   <Input

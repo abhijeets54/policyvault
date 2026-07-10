@@ -37,7 +37,7 @@ export async function GET(req: Request) {
     })
   }
 
-  const buf = policiesToExcel(policies || [])
+  const buf = await policiesToExcel(policies || [])
   return new NextResponse(buf as any, {
     headers: {
       'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',

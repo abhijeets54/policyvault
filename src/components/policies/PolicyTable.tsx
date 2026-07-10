@@ -102,6 +102,7 @@ export function PolicyTable({ policies, onSearch, onTypeFilter, onStatusFilter, 
         <table className="w-full text-sm">
           <thead className="bg-gray-50 border-b">
             <tr>
+              <th className="text-left p-3 font-medium text-gray-600">Referred By</th>
               <th className="text-left p-3 font-medium text-gray-600 cursor-pointer select-none" onClick={() => handleSort('holder_name')}>
                 Client Name <SortIcon field="holder_name" />
               </th>
@@ -139,6 +140,7 @@ export function PolicyTable({ policies, onSearch, onTypeFilter, onStatusFilter, 
                   className="border-t hover:bg-gray-50 cursor-pointer transition-colors"
                   onClick={() => router.push(`/policies/${p.id}`)}
                 >
+                  <td className="p-3 text-gray-500">{p.referred_by || '—'}</td>
                   <td className="p-3 font-medium">{p.holder_name || '—'}</td>
                   <td className="p-3 text-gray-600">{p.holder_phone || '—'}</td>
                   <td className="p-3 font-mono text-xs text-gray-600">{p.policy_number || '—'}</td>

@@ -25,6 +25,11 @@ export function PolicyCard({ policy }: Props) {
                 {policy.holder_phone}
               </p>
             )}
+            {policy.referred_by && (
+              <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
+                <span className="font-medium">Ref:</span> {policy.referred_by}
+              </p>
+            )}
           </div>
           <PolicyTypeBadge type={policy.policy_type} />
         </div>

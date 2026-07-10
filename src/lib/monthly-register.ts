@@ -1,62 +1,89 @@
-import * as XLSX from 'xlsx'
+import ExcelJS from 'exceljs'
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import type { Policy } from '@/lib/types'
 
-export function generateMonthlyExcel(policies: Policy[], monthName: string, year: number): Buffer {
+export async function generateMonthlyExcel(policies: Policy[], monthName: string, year: number): Promise<Buffer> {
+  const wb = new ExcelJS.Workbook()
+  wb.creator = 'PolicyVault'
+  wb.created = new Date()
+
+  const ws = wb.addWorksheet(`${monthName} ${year}`)
+
   const headers = [
-    'Sr.', 'Client Name', 'Phone', 'Policy Number', 'Insurer', 'Type',
+    'Sr.', 'Referred By', 'Client Name', 'Phone', 'Policy Number', 'Insurer', 'Type',
     'Plan', 'Sum Insured (₹)', 'Premium (₹)', 'Expiry Date',
     'Vehicle No.', 'Members', 'Status', 'Notes',
   ]
 
-  const dataRows = policies.map((p, i) => [
-    i + 1,
-    p.holder_name || 'N/A',
-    p.holder_phone || 'N/A',
-    p.policy_number || 'N/A',
-    p.insurer_name || 'N/A',
-    (p.policy_type || 'N/A').toUpperCase(),
-    p.plan_name || 'N/A',
-    p.sum_insured ? p.sum_insured.toLocaleString('en-IN') : 'N/A',
-    (p.total_premium || p.premium_amount)
-      ? (p.total_premium || p.premium_amount)!.toLocaleString('en-IN') : 'N/A',
-    p.expiry_date
-      ? new Date(p.expiry_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
-      : 'N/A',
-    p.vehicle_number || '—',
-    p.family_members?.length ? p.family_members.map(m => m.name).join(', ') : '—',
-    (p.status || 'active').toUpperCase(),
-    p.notes || '',
-  ])
+  // Row 1: Title (merged across all columns)
+  const titleRow = ws.addRow([`POLICY EXPIRY REGISTER — ${monthName.toUpperCase()} ${year}`])
+  ws.mergeCells(1, 1, 1, headers.length)
+  titleRow.getCell(1).font = { bold: true, size: 14, color: { argb: 'FF1E3A5F' } }
+  titleRow.getCell(1).alignment = { horizontal: 'center' }
 
-  // Title rows required by spec — prominent header before data table
-  const allRows = [
-    [`POLICY EXPIRY REGISTER — ${monthName.toUpperCase()} ${year}`],
-    [`Total Policies: ${policies.length}`],
-    [`Generated: ${new Date().toLocaleString('en-IN')}`],
-    [],           // blank separator row
-    headers,
-    ...dataRows,
-  ]
+  // Row 2: Total count
+  const countRow = ws.addRow([`Total Policies: ${policies.length}`])
+  ws.mergeCells(2, 1, 2, headers.length)
+  countRow.getCell(1).font = { bold: true, size: 11, color: { argb: 'FF6B7280' } }
+  countRow.getCell(1).alignment = { horizontal: 'center' }
 
-  const ws = XLSX.utils.aoa_to_sheet(allRows)
+  // Row 3: Generated date
+  const dateRow = ws.addRow([`Generated: ${new Date().toLocaleString('en-IN')}`])
+  ws.mergeCells(3, 1, 3, headers.length)
+  dateRow.getCell(1).font = { size: 10, color: { argb: 'FF9CA3AF' } }
+  dateRow.getCell(1).alignment = { horizontal: 'center' }
 
-  // Column widths based on header row (row index 4)
-  ws['!cols'] = headers.map(k => ({ wch: Math.max(k.length + 2, 14) }))
+  // Row 4: Blank separator
+  ws.addRow([])
 
-  // Merge title cells across all columns for visual prominence
-  if (headers.length > 1) {
-    ws['!merges'] = [
-      { s: { r: 0, c: 0 }, e: { r: 0, c: headers.length - 1 } },
-      { s: { r: 1, c: 0 }, e: { r: 1, c: headers.length - 1 } },
-      { s: { r: 2, c: 0 }, e: { r: 2, c: headers.length - 1 } },
-    ]
+  // Row 5: Header row with styling
+  const headerRow = ws.addRow(headers)
+  headerRow.eachCell((cell) => {
+    cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10 }
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E3A5F' } }
+    cell.alignment = { horizontal: 'center', vertical: 'middle' }
+    cell.border = {
+      bottom: { style: 'thin', color: { argb: 'FF000000' } },
+    }
+  })
+
+  // Data rows
+  for (let i = 0; i < policies.length; i++) {
+    const p = policies[i]
+    ws.addRow([
+      i + 1,
+      p.referred_by || '—',
+      p.holder_name || 'N/A',
+      p.holder_phone || 'N/A',
+      p.policy_number || 'N/A',
+      p.insurer_name || 'N/A',
+      (p.policy_type || 'N/A').toUpperCase(),
+      p.plan_name || 'N/A',
+      p.sum_insured ? p.sum_insured.toLocaleString('en-IN') : 'N/A',
+      (p.total_premium || p.premium_amount)
+        ? (p.total_premium || p.premium_amount)!.toLocaleString('en-IN') : 'N/A',
+      p.expiry_date
+        ? new Date(p.expiry_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+        : 'N/A',
+      p.vehicle_number || '—',
+      p.family_members?.length ? p.family_members.map(m => m.name).join(', ') : '—',
+      (p.status || 'active').toUpperCase(),
+      p.notes || '',
+    ])
   }
 
-  const wb = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(wb, ws, `${monthName} ${year}`)
-  return XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' }) as Buffer
+  // Auto-size columns
+  ws.columns.forEach((col) => {
+    let maxLen = 14
+    col.eachCell?.({ includeEmpty: false }, (cell) => {
+      const len = cell.value ? String(cell.value).length : 0
+      if (len > maxLen) maxLen = len
+    })
+    col.width = Math.min(maxLen + 2, 40)
+  })
+
+  return Buffer.from(await wb.xlsx.writeBuffer())
 }
 
 export function generateMonthlyPdf(policies: Policy[], monthName: string, year: number): Buffer {
@@ -72,9 +99,10 @@ export function generateMonthlyPdf(policies: Policy[], monthName: string, year: 
 
   autoTable(doc, {
     startY: 75,
-    head: [['Sr.', 'Client', 'Phone', 'Policy #', 'Insurer', 'Type', 'Sum Insured', 'Premium', 'Expiry', 'Vehicle']],
+    head: [['Sr.', 'Referred By', 'Client', 'Phone', 'Policy #', 'Insurer', 'Type', 'Sum Insured', 'Premium', 'Expiry', 'Vehicle']],
     body: policies.map((p, i) => [
       i + 1,
+      p.referred_by ?? '',
       p.holder_name ?? '',
       p.holder_phone ?? '',
       p.policy_number ?? '',

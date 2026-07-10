@@ -174,6 +174,7 @@ export default function PolicyDetailPage({ params }: { params: { id: string } })
           <div className="bg-white rounded-xl border shadow-sm p-5">
             <h3 className="text-sm font-semibold text-gray-700 mb-4">Policyholder</h3>
             <div className="grid grid-cols-2 gap-4">
+              {field('referred_by', 'Referred By')}
               {field('holder_name', 'Full Name')}
               {field('holder_phone', 'Phone')}
               {field('holder_email', 'Email')}

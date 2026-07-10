@@ -15,6 +15,7 @@ export function PolicyEditor({ policy, pdfUrl }: { policy: Policy; pdfUrl: strin
   const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [form, setForm] = useState({
+    referred_by: policy.referred_by ?? '',
     holder_name: policy.holder_name ?? '',
     holder_phone: policy.holder_phone ?? '',
     holder_email: policy.holder_email ?? '',
@@ -131,6 +132,7 @@ export function PolicyEditor({ policy, pdfUrl }: { policy: Policy; pdfUrl: strin
 
       {/* Form fields */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {field("Referred By", "referred_by")}
         {field("Client Name", "holder_name")}
         {field("Phone", "holder_phone")}
         {field("Email", "holder_email", "email")}

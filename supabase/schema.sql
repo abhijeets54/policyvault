@@ -57,6 +57,7 @@ CREATE TABLE IF NOT EXISTS public.policies (
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
 
   -- POLICYHOLDER PERSONAL DETAILS
+  referred_by TEXT,
   holder_name TEXT,
   holder_phone TEXT,
   holder_email TEXT,

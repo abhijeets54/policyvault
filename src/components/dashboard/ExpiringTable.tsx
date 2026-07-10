@@ -27,6 +27,7 @@ export function ExpiringTable({ policies }: Props) {
         <table className="w-full text-sm">
           <thead className="bg-gray-50">
             <tr>
+              <th className="text-left p-3 font-medium text-gray-600">Referred By</th>
               <th className="text-left p-3 font-medium text-gray-600">Client</th>
               <th className="text-left p-3 font-medium text-gray-600">Phone</th>
               <th className="text-left p-3 font-medium text-gray-600">Insurer</th>
@@ -39,6 +40,7 @@ export function ExpiringTable({ policies }: Props) {
           <tbody>
             {policies.map(p => (
               <tr key={p.id} className="border-t hover:bg-gray-50">
+                <td className="p-3 text-gray-500">{p.referred_by || '—'}</td>
                 <td className="p-3 font-medium">{p.holder_name || '—'}</td>
                 <td className="p-3 text-gray-600">{p.holder_phone || '—'}</td>
                 <td className="p-3">{p.insurer_name || '—'}</td>

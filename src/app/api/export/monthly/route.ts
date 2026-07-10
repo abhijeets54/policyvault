@@ -41,7 +41,7 @@ export async function GET(req: NextRequest) {
     })
   }
 
-  const buffer = generateMonthlyExcel(policies || [], monthName, year)
+  const buffer = await generateMonthlyExcel(policies || [], monthName, year)
   return new NextResponse(buffer as any, {
     headers: {
       'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',

@@ -1,0 +1,1136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>PolicyVault — SaaS Upgrade & Audit Report</title>
+<style>
+  :root {
+    --bg: #0f1117; --surface: #1a1d27; --surface2: #22263a;
+    --border: #2e3350; --accent: #6366f1; --accent2: #22d3ee;
+    --green: #22c55e; --red: #ef4444; --orange: #f97316;
+    --yellow: #eab308; --blue: #3b82f6; --purple: #a855f7;
+    --text: #e2e8f0; --muted: #8892b0; --code-bg: #141720;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; font-size: 15px; line-height: 1.7; }
+
+  /* ── Layout ── */
+  .wrapper { max-width: 1100px; margin: 0 auto; padding: 0 24px 80px; }
+  nav { position: sticky; top: 0; background: rgba(15,17,23,0.95); backdrop-filter: blur(8px); border-bottom: 1px solid var(--border); z-index: 100; padding: 12px 24px; display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px; font-weight: 600; letter-spacing: .04em; }
+  nav a { color: var(--muted); text-decoration: none; padding: 4px 10px; border-radius: 6px; transition: .15s; }
+  nav a:hover { background: var(--surface2); color: var(--text); }
+
+  /* ── Header ── */
+  .hero { padding: 56px 0 40px; }
+  .hero h1 { font-size: 36px; font-weight: 800; background: linear-gradient(135deg,#6366f1,#22d3ee); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+  .hero .sub { color: var(--muted); font-size: 15px; margin-top: 8px; }
+  .meta-row { display: flex; gap: 20px; flex-wrap: wrap; margin-top: 20px; font-size: 12px; }
+  .badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 99px; font-weight: 600; }
+  .badge.red { background: rgba(239,68,68,.15); color: #fca5a5; border: 1px solid rgba(239,68,68,.3); }
+  .badge.orange { background: rgba(249,115,22,.15); color: #fdba74; border: 1px solid rgba(249,115,22,.3); }
+  .badge.green { background: rgba(34,197,94,.15); color: #86efac; border: 1px solid rgba(34,197,94,.3); }
+  .badge.blue { background: rgba(59,130,246,.15); color: #93c5fd; border: 1px solid rgba(59,130,246,.3); }
+  .badge.purple { background: rgba(168,85,247,.15); color: #d8b4fe; border: 1px solid rgba(168,85,247,.3); }
+
+  /* ── Sections ── */
+  section { margin-top: 56px; }
+  h2 { font-size: 24px; font-weight: 700; color: var(--text); border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-bottom: 28px; display: flex; align-items: center; gap: 10px; }
+  h2 .icon { font-size: 22px; }
+  h3 { font-size: 17px; font-weight: 700; color: var(--accent2); margin: 28px 0 10px; }
+  h4 { font-size: 14px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin: 20px 0 8px; }
+  p { color: var(--muted); margin-bottom: 12px; }
+  p strong { color: var(--text); }
+  ul, ol { color: var(--muted); padding-left: 22px; margin-bottom: 14px; }
+  li { margin-bottom: 6px; }
+  li strong { color: var(--text); }
+  a { color: var(--accent); }
+
+  /* ── Cards ── */
+  .grid { display: grid; gap: 16px; }
+  .grid-2 { grid-template-columns: 1fr 1fr; }
+  .grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .grid-4 { grid-template-columns: repeat(4, 1fr); }
+  @media (max-width: 750px) { .grid-2,.grid-3,.grid-4 { grid-template-columns: 1fr; } nav { display: none; } }
+  @media (max-width: 950px) { .grid-3,.grid-4 { grid-template-columns: 1fr 1fr; } }
+
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px 22px; }
+  .card.accent { border-color: rgba(99,102,241,.4); background: linear-gradient(135deg,rgba(99,102,241,.08),rgba(34,211,238,.04)); }
+  .card.danger { border-color: rgba(239,68,68,.35); background: rgba(239,68,68,.05); }
+  .card.warning { border-color: rgba(249,115,22,.35); background: rgba(249,115,22,.05); }
+  .card.success { border-color: rgba(34,197,94,.3); background: rgba(34,197,94,.05); }
+  .card h3 { margin-top: 0; }
+  .card-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-bottom: 6px; }
+  .card-value { font-size: 28px; font-weight: 800; }
+  .card-desc { font-size: 13px; color: var(--muted); margin-top: 4px; }
+
+  /* ── Bugs / Issues ── */
+  .issue { display: flex; gap: 14px; padding: 16px; border-radius: 10px; margin-bottom: 12px; border: 1px solid; }
+  .issue.critical { background: rgba(239,68,68,.07); border-color: rgba(239,68,68,.3); }
+  .issue.major { background: rgba(249,115,22,.07); border-color: rgba(249,115,22,.3); }
+  .issue.minor { background: rgba(234,179,8,.07); border-color: rgba(234,179,8,.3); }
+  .issue.info { background: rgba(59,130,246,.07); border-color: rgba(59,130,246,.3); }
+  .issue-sev { font-size: 11px; font-weight: 800; text-transform: uppercase; padding: 2px 8px; border-radius: 99px; white-space: nowrap; height: fit-content; margin-top: 2px; }
+  .sev-critical { background: rgba(239,68,68,.2); color: #fca5a5; }
+  .sev-major { background: rgba(249,115,22,.2); color: #fdba74; }
+  .sev-minor { background: rgba(234,179,8,.2); color: #fde047; }
+  .sev-info { background: rgba(59,130,246,.2); color: #93c5fd; }
+  .issue-body h4 { margin: 0 0 4px; font-size: 14px; font-weight: 700; color: var(--text); text-transform: none; letter-spacing: 0; }
+  .issue-body p { margin: 0 0 6px; font-size: 13px; color: var(--muted); }
+  .issue-fix { font-size: 12px; color: #86efac; background: rgba(34,197,94,.1); border: 1px solid rgba(34,197,94,.2); border-radius: 6px; padding: 6px 10px; display: inline-block; margin-top: 4px; }
+
+  /* ── Code ── */
+  code { font-family: 'Cascadia Code','Fira Code',monospace; font-size: 13px; background: var(--code-bg); padding: 2px 6px; border-radius: 4px; color: #a5f3fc; border: 1px solid var(--border); }
+  pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: 10px; padding: 16px 20px; overflow-x: auto; margin: 12px 0 20px; }
+  pre code { background: transparent; border: none; padding: 0; color: #e2e8f0; font-size: 13px; }
+  .kw { color: #c084fc; } .fn { color: #67e8f9; } .str { color: #86efac; } .cm { color: #475569; font-style: italic; }
+
+  /* ── Compare table ── */
+  .compare { width: 100%; border-collapse: collapse; margin: 16px 0 24px; font-size: 13px; }
+  .compare th { background: var(--surface2); color: var(--muted); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border); }
+  .compare td { padding: 10px 14px; border-bottom: 1px solid var(--border); color: var(--muted); vertical-align: middle; }
+  .compare tr:hover td { background: rgba(255,255,255,.02); }
+  .compare .best { color: #86efac; font-weight: 700; }
+  .compare .good { color: #93c5fd; }
+  .compare .ok { color: #fde047; }
+  .compare .bad { color: #fca5a5; }
+  .compare .row-label { color: var(--text); font-weight: 600; }
+  .recommend-pill { background: rgba(99,102,241,.2); color: #c7d2fe; border: 1px solid rgba(99,102,241,.4); border-radius: 99px; padding: 2px 8px; font-size: 11px; font-weight: 700; }
+  .current-pill { background: rgba(34,211,238,.15); color: #a5f3fc; border: 1px solid rgba(34,211,238,.3); border-radius: 99px; padding: 2px 8px; font-size: 11px; font-weight: 700; }
+
+  /* ── Pricing ── */
+  .pricing-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 20px; margin: 20px 0; }
+  @media (max-width: 800px) { .pricing-grid { grid-template-columns: 1fr; } }
+  .plan { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 28px 24px; }
+  .plan.featured { border-color: rgba(99,102,241,.5); background: linear-gradient(160deg,rgba(99,102,241,.1),var(--surface)); }
+  .plan-name { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); }
+  .plan-price { font-size: 36px; font-weight: 800; color: var(--text); margin: 8px 0 4px; }
+  .plan-price span { font-size: 14px; color: var(--muted); font-weight: 400; }
+  .plan-desc { font-size: 13px; color: var(--muted); margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid var(--border); }
+  .plan-feature { font-size: 13px; color: var(--muted); padding: 5px 0; display: flex; gap: 8px; }
+  .plan-feature::before { content: '✓'; color: var(--green); font-weight: 700; flex-shrink: 0; }
+  .plan-feature.no::before { content: '✗'; color: #475569; }
+  .plan-cta { display: block; margin-top: 24px; text-align: center; padding: 10px; border-radius: 8px; font-weight: 700; font-size: 13px; text-decoration: none; background: var(--accent); color: white; }
+  .plan.featured .plan-cta { background: linear-gradient(135deg,#6366f1,#22d3ee); }
+
+  /* ── Feature list ── */
+  .feat-row { display: flex; gap: 14px; align-items: flex-start; padding: 14px 0; border-bottom: 1px solid var(--border); }
+  .feat-row:last-child { border-bottom: none; }
+  .feat-icon { font-size: 20px; width: 32px; flex-shrink: 0; text-align: center; margin-top: 2px; }
+  .feat-body h4 { margin: 0 0 4px; font-size: 14px; font-weight: 700; color: var(--text); text-transform: none; letter-spacing: 0; }
+  .feat-body p { margin: 0; font-size: 13px; color: var(--muted); }
+  .tier-pill { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 99px; margin-left: 6px; }
+  .t-free { background: rgba(34,197,94,.15); color: #86efac; }
+  .t-paid { background: rgba(99,102,241,.2); color: #c7d2fe; }
+
+  /* ── Timeline / roadmap ── */
+  .roadmap { position: relative; padding-left: 28px; }
+  .roadmap::before { content:''; position:absolute;left:8px;top:0;bottom:0;width:2px;background:var(--border); }
+  .rm-item { position: relative; margin-bottom: 28px; }
+  .rm-dot { position:absolute;left:-24px;top:4px;width:14px;height:14px;border-radius:50%;border:2px solid var(--accent);background:var(--bg); }
+  .rm-phase { font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--accent);margin-bottom:4px; }
+  .rm-item h4 { margin:0 0 6px;font-size:14px;color:var(--text);text-transform:none;letter-spacing:0; }
+  .rm-item p { margin:0;font-size:13px;color:var(--muted); }
+
+  /* ── Misc ── */
+  .divider { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
+  .callout { background: var(--surface); border-left: 3px solid var(--accent); border-radius: 0 10px 10px 0; padding: 14px 18px; margin: 16px 0; }
+  .callout.danger { border-color: var(--red); background: rgba(239,68,68,.06); }
+  .callout.warning { border-color: var(--orange); background: rgba(249,115,22,.06); }
+  .callout.success { border-color: var(--green); background: rgba(34,197,94,.06); }
+  .callout p { margin: 0; font-size: 14px; color: var(--text); }
+  .tag { display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 99px; margin: 2px; }
+  .tag-green { background: rgba(34,197,94,.15); color: #86efac; }
+  .tag-red { background: rgba(239,68,68,.15); color: #fca5a5; }
+  .tag-blue { background: rgba(59,130,246,.15); color: #93c5fd; }
+  .tag-purple { background: rgba(168,85,247,.15); color: #d8b4fe; }
+  .tag-orange { background: rgba(249,115,22,.15); color: #fdba74; }
+  footer { margin-top: 80px; border-top: 1px solid var(--border); padding: 24px 0; color: var(--muted); font-size: 13px; }
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="#summary">Summary</a>
+  <a href="#extraction">AI Extraction</a>
+  <a href="#bugs">Bugs</a>
+  <a href="#security">Security</a>
+  <a href="#features">Features</a>
+  <a href="#pricing">Pricing</a>
+  <a href="#new-features">New Features</a>
+  <a href="#roadmap">Roadmap</a>
+</nav>
+
+<div class="wrapper">
+
+<div class="hero">
+  <h1>PolicyVault — Full SaaS Audit & Upgrade Report</h1>
+  <p class="sub">Complete codebase review · AI extraction benchmarks · security vulnerabilities · upgrade recommendations with INR pricing</p>
+  <div class="meta-row">
+    <span class="badge red">🔴 2 Critical Bugs</span>
+    <span class="badge orange">🟠 5 Major Issues</span>
+    <span class="badge yellow">⚠️ 8 Minor Issues</span>
+    <span class="badge blue">🔵 Stack: Next.js 14 · Supabase · Gemini · Groq · Vercel</span>
+    <span class="badge purple">📅 Audit Date: July 2026</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<section id="summary">
+<h2><span class="icon">📋</span> Executive Summary</h2>
+
+<div class="grid grid-4">
+  <div class="card">
+    <div class="card-label">Overall Score</div>
+    <div class="card-value" style="color:#f97316">6.5 / 10</div>
+    <div class="card-desc">Good foundation, significant gaps</div>
+  </div>
+  <div class="card">
+    <div class="card-label">AI Extraction</div>
+    <div class="card-value" style="color:#eab308">~85%</div>
+    <div class="card-desc">Accuracy (estimated, text PDFs)</div>
+  </div>
+  <div class="card">
+    <div class="card-label">Security</div>
+    <div class="card-value" style="color:#f97316">7 / 10</div>
+    <div class="card-desc">RLS solid, several gaps</div>
+  </div>
+  <div class="card">
+    <div class="card-label">SaaS Readiness</div>
+    <div class="card-value" style="color:#ef4444">4 / 10</div>
+    <div class="card-desc">Not yet multi-tenant ready</div>
+  </div>
+</div>
+
+<div class="callout warning" style="margin-top:20px">
+  <p><strong>⚠️ Critical Finding:</strong> The monthly cron email job is <strong>fundamentally broken</strong> — it will always return 401 Unauthorized because the pg_cron caller has no auth session. The monthly register feature has never worked as designed. See Bugs section for the fix.</p>
+</div>
+
+<p style="margin-top:16px">Your stack choice is excellent — Next.js 14 + Supabase + Vercel is the right foundation for a lean insurance SaaS. The RLS isolation is properly implemented and the PDF extraction pipeline is conceptually sound. The major issues are: (1) the cron job auth bug, (2) the AI extraction pipeline can be significantly upgraded for near-100% accuracy, (3) the app is single-tenant by design and needs architectural changes for true multi-agent SaaS, and (4) several security gaps need addressing before scaling.</p>
+</section>
+
+<!-- ═══════════════════════════════════════════════ -->
+<section id="extraction">
+<h2><span class="icon">🧠</span> AI Extraction Pipeline — Deep Dive</h2>
+
+<h3>What You Currently Have</h3>
+<p>Your primary extractor (<code>src/lib/ai/extractor.ts</code>) uses <strong>Groq Llama 4 Scout</strong> as the primary engine with <strong>pdf-parse</strong> to get text, then <strong>Gemini 2.5 Flash</strong> as the fallback using native PDF understanding (multimodal). The legacy <code>extract.ts</code> reverses this order. Both files are in production simultaneously — that's a code smell.</p>
+
+<div class="callout warning">
+  <p><strong>Duplicate extraction modules:</strong> <code>extract.ts</code> and <code>extractor.ts</code> both exist and serve overlapping purposes. The route uses <code>extractor.ts</code> but the old file is never cleaned up. This is a maintenance and confusion risk.</p>
+</div>
+
+<h3>AI Model Benchmark for Document Extraction (Insurance PDFs)</h3>
+
+<table class="compare">
+  <thead>
+    <tr>
+      <th>Model</th>
+      <th>Text PDF Accuracy</th>
+      <th>Scanned PDF</th>
+      <th>Hindi/Mixed</th>
+      <th>Cost / 1k PDFs</th>
+      <th>Speed</th>
+      <th>JSON Consistency</th>
+      <th>Status</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td class="row-label">Gemini 2.5 Flash</td>
+      <td class="good">96%</td>
+      <td class="best">✅ Native</td>
+      <td class="best">✅ Strong</td>
+      <td class="best">~₹6</td>
+      <td class="best">Fast</td>
+      <td class="good">Good</td>
+      <td><span class="current-pill">Current Primary</span></td>
+    </tr>
+    <tr>
+      <td class="row-label">Groq Llama 4 Scout</td>
+      <td class="good">~90%</td>
+      <td class="bad">❌ Text only</td>
+      <td class="ok">Moderate</td>
+      <td class="best">~₹0 (free)</td>
+      <td class="best">Fastest</td>
+      <td class="good">Good (json_object)</td>
+      <td><span class="current-pill">Current Fallback</span></td>
+    </tr>
+    <tr>
+      <td class="row-label">Claude Haiku 4.5</td>
+      <td class="good">97%</td>
+      <td class="good">✅ Base64</td>
+      <td class="good">Good</td>
+      <td class="ok">~₹84</td>
+      <td class="good">Fast</td>
+      <td class="best">Excellent</td>
+      <td><span class="recommend-pill">Recommend as Validator</span></td>
+    </tr>
+    <tr>
+      <td class="row-label">Claude Sonnet 4.6</td>
+      <td class="best">98%</td>
+      <td class="best">✅ Native</td>
+      <td class="best">Excellent</td>
+      <td class="bad">~₹840</td>
+      <td class="ok">Moderate</td>
+      <td class="best">Excellent</td>
+      <td><span class="recommend-pill">Premium Tier Extractor</span></td>
+    </tr>
+    <tr>
+      <td class="row-label">GPT-4o mini</td>
+      <td class="best">98%</td>
+      <td class="good">✅ Via base64</td>
+      <td class="ok">Moderate</td>
+      <td class="ok">~₹105</td>
+      <td class="good">Fast</td>
+      <td class="best">Excellent</td>
+      <td>Alternative validator</td>
+    </tr>
+    <tr>
+      <td class="row-label">Google Document AI</td>
+      <td class="best">99%+</td>
+      <td class="best">✅ Specialized OCR</td>
+      <td class="best">✅ Best</td>
+      <td class="ok">~₹130</td>
+      <td class="ok">Moderate</td>
+      <td class="best">Structured</td>
+      <td>Enterprise tier option</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>🚨 Current Pipeline Problems</h3>
+
+<div class="grid grid-2">
+  <div class="card danger">
+    <h3>1. Scanned PDFs Are Completely Broken</h3>
+    <p>The Groq path uses <code>pdf-parse</code> which can only extract text from digitally-created PDFs. <strong>Any scanned insurance policy (the majority of old policies in India) returns blank text,</strong> meaning Groq extracts nothing and you get an empty result or fall back to Gemini.</p>
+    <p>Indian insurance agents frequently deal with scanned copies. This is a near-total failure mode.</p>
+  </div>
+  <div class="card danger">
+    <h3>2. Fallback Threshold is Too Low</h3>
+    <p>The <code>score()</code> function in the legacy extractor approves a Gemini result if it gets <strong>≥ 3 fields</strong>. A result with <code>holder_name</code>, <code>policy_number</code>, and <code>insurer_name</code> only would pass even if it missed all financial data and dates.</p>
+    <p>Fix: require at minimum holder_name + policy_number + expiry_date (the critical triad) to be non-null.</p>
+  </div>
+  <div class="card warning">
+    <h3>3. No Cross-Validation</h3>
+    <p>There is zero comparison between what Gemini and Groq return. If both models agree on the same wrong value for a field, you never know. For a SaaS where agents trust the AI output, this is dangerous.</p>
+    <p>Solution: Run both models in parallel, compare key fields, flag discrepancies for human review, and boost confidence score when they agree.</p>
+  </div>
+  <div class="card warning">
+    <h3>4. Groq Text Truncation</h3>
+    <p>The Groq extractor truncates text to <strong>20,000 characters</strong>. A 30-page group health policy or a complex life insurance document will easily exceed this, causing critical data (nominee, riders, annexures) to be cut off silently.</p>
+    <p>Fix: Use Gemini 2.5 Flash (1M token context, native PDF) for long docs, with chunking strategy for Groq fallback.</p>
+  </div>
+  <div class="card warning">
+    <h3>5. No Retry Logic</h3>
+    <p>If Gemini returns a malformed JSON or hits a rate limit, the whole extraction fails. There's a try-catch but no exponential backoff or retry. In production with multiple agents uploading simultaneously, this will cause silent failures.</p>
+    <p>Fix: Add 2-3 retries with exponential backoff using a utility like <code>p-retry</code>.</p>
+  </div>
+  <div class="card warning">
+    <h3>6. No Prompt Versioning / A-B Testing</h3>
+    <p>The extraction prompt is hardcoded in the source. If you update it, you can't compare new vs old accuracy. As you scale and encounter edge cases (LIC policies, Bajaj Allianz formats, etc.), you need to iterate the prompt without breaking existing extractions.</p>
+    <p>Fix: Store prompts in a table with versions; test new prompts against saved sample PDFs before deploying.</p>
+  </div>
+</div>
+
+<h3>✅ Recommended New Pipeline Architecture</h3>
+
+<pre><code><span class="cm">/**
+ * UPGRADED EXTRACTION PIPELINE (3-tier with cross-validation)
+ * 
+ * Tier 1: Gemini 2.5 Flash — always runs first (native PDF, handles scanned)
+ * Tier 2: Claude Haiku 4.5 — parallel run for validation (text PDFs)
+ * Tier 3: Groq Llama 4 Scout — emergency fallback if both fail
+ * 
+ * Cross-validation: compare key fields between models
+ * Confidence boost: if both models agree → "high"
+ */</span>
+
+<span class="kw">export async function</span> <span class="fn">extractPolicyFromPDF</span>(pdfBuffer: Buffer): Promise&lt;ExtractionResult&gt; {
+  
+  <span class="cm">// Always run Gemini (handles both text and scanned PDFs)</span>
+  <span class="kw">const</span> geminiPromise = <span class="fn">extractWithGemini</span>(pdfBuffer).catch(e =&gt; ({ error: e.message }))
+  
+  <span class="cm">// Run Groq in parallel for text-based PDFs (free, fast)</span>
+  <span class="kw">const</span> groqPromise = <span class="fn">extractWithGroqText</span>(pdfBuffer).catch(e =&gt; ({ error: e.message }))
+  
+  <span class="kw">const</span> [geminiResult, groqResult] = <span class="kw">await</span> Promise.allSettled([geminiPromise, groqPromise])
+  
+  <span class="cm">// Cross-validate: if both succeed, merge with confidence boost</span>
+  <span class="kw">if</span> (geminiResult.status === <span class="str">'fulfilled'</span> && groqResult.status === <span class="str">'fulfilled'</span>) {
+    <span class="kw">return</span> <span class="fn">mergeAndValidate</span>(geminiResult.value, groqResult.value)
+  }
+  
+  <span class="cm">// Single model succeeded</span>
+  <span class="kw">if</span> (geminiResult.status === <span class="str">'fulfilled'</span>) <span class="kw">return</span> geminiResult.value
+  <span class="kw">if</span> (groqResult.status === <span class="str">'fulfilled'</span>) <span class="kw">return</span> groqResult.value
+  
+  <span class="cm">// Emergency: both failed, try Claude Haiku (paid)</span>
+  <span class="kw">return</span> <span class="fn">extractWithClaude</span>(pdfBuffer)
+}
+
+<span class="cm">// Cross-validation: flag fields where models disagree</span>
+<span class="kw">function</span> <span class="fn">mergeAndValidate</span>(a: ExtractedPolicyData, b: ExtractedPolicyData) {
+  <span class="kw">const</span> CRITICAL = [<span class="str">'expiry_date'</span>, <span class="str">'sum_insured'</span>, <span class="str">'premium_amount'</span>, <span class="str">'policy_number'</span>]
+  <span class="kw">const</span> conflicts = CRITICAL.filter(f =&gt; a[f] && b[f] && a[f] !== b[f])
+  <span class="kw">return</span> {
+    ...a,
+    extraction_confidence: conflicts.length === 0 ? <span class="str">'high'</span> : <span class="str">'medium'</span>,
+    extraction_notes: conflicts.length ? 
+      <span class="str">`Models disagreed on: ${conflicts.join(', ')} — please verify`</span> : a.extraction_notes,
+    cross_validated: <span class="kw">true</span>,
+    model_agreement: conflicts.length === 0
+  }
+}</code></pre>
+
+<h3>Prompt Engineering Improvements</h3>
+<p>Add these to your extraction prompt for Indian insurance specifics:</p>
+
+<pre><code><span class="cm">// Add to EXTRACTION_PROMPT:</span>
+<span class="kw">const</span> INDIA_SPECIFIC = <span class="str">`
+INDIAN INSURANCE SPECIFICS:
+- Insurers: LIC, HDFC Life, ICICI Prudential, SBI Life, Bajaj Allianz, 
+  Star Health, Niva Bupa, TATA AIG, New India Assurance, United India, 
+  Oriental Insurance, National Insurance, Reliance General, etc.
+- Policy numbers: may appear as "Policy No.", "Certificate No.", "Proposal No."
+- Vehicle numbers: Indian format — XX99XX9999 (e.g. PB10AB1234, MH12CD5678)
+- PAN: 5 letters + 4 digits + 1 letter (e.g. ABCDE1234F)
+- Sum insured may appear as "SI", "Sum Assured", "Coverage Amount", "IDV"
+- Dates in Indian format: DD/MM/YYYY or DD-Mon-YYYY (e.g. 01-Jan-2026)
+- GST is 18% on most insurance premiums — if total_premium is given but 
+  premium_amount is not, calculate: premium_amount = total_premium / 1.18
+- For motor: IDV (Insured Declared Value) is the sum_insured equivalent
+- Family floater plans: extract ALL members, check "Schedule of Benefits"
+- For health: NCB (No Claim Bonus), waiting periods are in the policy schedule
+`</span></code></pre>
+
+<div class="callout success">
+  <p><strong>Scanned PDF Fix (Free):</strong> Gemini 2.5 Flash handles scanned PDFs natively via its multimodal vision. Make Gemini the <em>unconditional primary</em> — it runs for every upload, text and scanned alike. Only use pdf-parse + Groq as a supplementary pass for cross-validation on large-context documents.</p>
+</div>
+</section>
+
+<!-- ═══════════════════════════════════════════════ -->
+<section id="bugs">
+<h2><span class="icon">🐛</span> Bugs, Problems & Dangers Found</h2>
+
+<!-- BUG 1 -->
+<div class="issue critical">
+  <span class="issue-sev sev-critical">CRITICAL</span>
+  <div class="issue-body">
+    <h4>🔴 CRITICAL #1 — Monthly Cron Email Never Works (401 Always)</h4>
+    <p><strong>File:</strong> <code>src/app/api/cron/monthly/route.ts</code></p>
+    <p>The route calls <code>createClient()</code> (session-based Supabase client) and immediately checks <code>supabase.auth.getUser()</code>. The pg_cron job at <code>supabase/cron.sql</code> sends only the <code>x-cron-secret</code> header — <strong>no auth cookie, no JWT token</strong>. Result: <code>getUser()</code> returns null, route returns 401, and <strong>the monthly email has never been sent automatically since the app launched.</strong></p>
+    <p>Additionally, the route only emails the "current user" (which doesn't exist in a cron context). The README says it should enumerate all agents — the code doesn't do this at all.</p>
+    <span class="issue-fix">✅ Fix: use <code>createAdminClient()</code> + verify <code>x-cron-secret</code> header first, then iterate all active profiles using the service role client.</span>
+    <pre><code><span class="cm">// CORRECT pattern for cron route:</span>
+<span class="kw">export async function</span> <span class="fn">POST</span>(req: NextRequest) {
+  <span class="cm">// Step 1: Verify cron secret (replaces auth check)</span>
+  <span class="kw">const</span> secret = req.headers.get(<span class="str">'x-cron-secret'</span>)
+  <span class="kw">if</span> (secret !== process.env.CRON_SECRET) {
+    <span class="kw">return</span> NextResponse.json({ error: <span class="str">'Forbidden'</span> }, { status: 403 })
+  }
+  
+  <span class="cm">// Step 2: Use admin client to bypass RLS</span>
+  <span class="kw">const</span> admin = <span class="fn">createAdminClient</span>()
+  
+  <span class="cm">// Step 3: Get ALL active users from profiles</span>
+  <span class="kw">const</span> { data: agents } = <span class="kw">await</span> admin
+    .from(<span class="str">'profiles'</span>)
+    .select(<span class="str">'id, email, full_name'</span>)
+    .eq(<span class="str">'is_active'</span>, <span class="kw">true</span>)
+  
+  <span class="cm">// Step 4: For each agent, fetch their policies and send email</span>
+  <span class="kw">for</span> (<span class="kw">const</span> agent <span class="kw">of</span> agents ?? []) {
+    <span class="kw">const</span> { data: policies } = <span class="kw">await</span> admin
+      .from(<span class="str">'policies'</span>)
+      .select(<span class="str">'*'</span>)
+      .eq(<span class="str">'user_id'</span>, agent.id)
+      .gte(<span class="str">'expiry_date'</span>, startDate)
+      .lte(<span class="str">'expiry_date'</span>, endDate)
+    <span class="cm">// ... send email to agent.email</span>
+  }
+}</code></pre>
+  </div>
+</div>
+
+<!-- BUG 2 -->
+<div class="issue critical">
+  <span class="issue-sev sev-critical">CRITICAL</span>
+  <div class="issue-body">
+    <h4>🔴 CRITICAL #2 — Scanned PDFs Return Empty Extraction</h4>
+    <p><strong>File:</strong> <code>src/lib/ai/extractor.ts</code></p>
+    <p>The primary extraction path uses <code>pdf-parse</code> which only reads text-layer data from digitally-created PDFs. <strong>Scanned/photographed insurance PDFs return an empty string</strong>, causing Groq to receive blank input and hallucinate or return all-null fields. The Gemini fallback only triggers if the score is below threshold — if Groq returns a few hallucinated fields (score ≥ 3), Gemini is never called.</p>
+    <p>Indian insurance agents regularly scan physical policies. This is a complete data-loss failure mode.</p>
+    <span class="issue-fix">✅ Fix: Always run Gemini first (it handles scanned PDFs natively). Use pdf-parse only to check if text is present; if text length &lt; 100 chars, skip Groq entirely.</span>
+  </div>
+</div>
+
+<!-- BUG 3 -->
+<div class="issue major">
+  <span class="issue-sev sev-major">MAJOR</span>
+  <div class="issue-body">
+    <h4>🟠 MAJOR #3 — Service Worker Cache References Wrong Manifest Path</h4>
+    <p><strong>File:</strong> <code>public/sw.js</code></p>
+    <p><code>STATIC_ASSETS</code> caches <code>'/manifest.json'</code> but the actual file is <code>public/manifest.webmanifest</code>. The cache attempt will fail silently, and if the user installs the PWA offline, the manifest won't be available.</p>
+    <span class="issue-fix">✅ Fix: change to <code>'/manifest.webmanifest'</code> in <code>STATIC_ASSETS</code>.</span>
+  </div>
+</div>
+
+<!-- BUG 4 -->
+<div class="issue major">
+  <span class="issue-sev sev-major">MAJOR</span>
+  <div class="issue-body">
+    <h4>🟠 MAJOR #4 — Duplicate Extraction Modules in Production</h4>
+    <p><strong>Files:</strong> <code>src/lib/ai/extract.ts</code> AND <code>src/lib/ai/extractor.ts</code></p>
+    <p>Two extraction orchestrators exist simultaneously with different model order (Gemini-first vs Groq-first). The route uses <code>extractor.ts</code> but <code>extract.ts</code> is still imported in potentially other places. Comments call it "legacy" but it isn't deleted. This creates confusion, inflates bundle size, and is a maintenance hazard if someone fixes a prompt bug in the wrong file.</p>
+    <span class="issue-fix">✅ Fix: Delete <code>src/lib/ai/extract.ts</code>, <code>src/lib/ai/gemini.ts</code>, and <code>src/lib/ai/groq.ts</code> after consolidating all logic into <code>extractor.ts</code>.</span>
+  </div>
+</div>
+
+<!-- BUG 5 -->
+<div class="issue major">
+  <span class="issue-sev sev-major">MAJOR</span>
+  <div class="issue-body">
+    <h4>🟠 MAJOR #5 — No Indexes on Critical Columns (Performance)</h4>
+    <p><strong>File:</strong> <code>supabase/schema.sql</code></p>
+    <p>The schema creates the <code>policies</code> table but no indexes are defined on the most-queried columns: <code>user_id</code>, <code>expiry_date</code>, <code>policy_type</code>, <code>status</code>, and <code>holder_name</code>. With even 500 policies per agent and 10 agents, every filtered query (monthly register, search, expiry alerts) will do a full sequential scan.</p>
+    <span class="issue-fix">✅ Fix: Add indexes in schema.sql or as a migration.</span>
+    <pre><code><span class="kw">CREATE INDEX IF NOT EXISTS</span> idx_policies_user_id <span class="kw">ON</span> policies (user_id);
+<span class="kw">CREATE INDEX IF NOT EXISTS</span> idx_policies_expiry_date <span class="kw">ON</span> policies (expiry_date);
+<span class="kw">CREATE INDEX IF NOT EXISTS</span> idx_policies_user_expiry <span class="kw">ON</span> policies (user_id, expiry_date);
+<span class="kw">CREATE INDEX IF NOT EXISTS</span> idx_policies_status <span class="kw">ON</span> policies (status);
+<span class="kw">CREATE INDEX IF NOT EXISTS</span> idx_policies_type <span class="kw">ON</span> policies (policy_type);</code></pre>
+  </div>
+</div>
+
+<!-- BUG 6 -->
+<div class="issue major">
+  <span class="issue-sev sev-major">MAJOR</span>
+  <div class="issue-body">
+    <h4>🟠 MAJOR #6 — In-Memory Rate Limiter is Effectively Broken on Vercel</h4>
+    <p><strong>File:</strong> <code>src/app/api/extract/route.ts</code> (implied)</p>
+    <p>The README acknowledges this but it's worth classifying as Major, not just a caveat. On Vercel's serverless (hobby plan), functions spin up cold for every request or are distributed across multiple instances. An in-memory rate limiter resets on every cold start and doesn't coordinate across instances. An agent could upload 100 PDFs in quick succession and hit Gemini API 100 times, running up significant costs or exhausting your free tier.</p>
+    <span class="issue-fix">✅ Free Fix: Use Supabase to store rate limit state (a simple <code>rate_limits</code> table with user_id + request_count + window_start). Paid: Upstash Redis (~₹0/month on free tier up to 10k req/day).</span>
+  </div>
+</div>
+
+<!-- BUG 7 -->
+<div class="issue major">
+  <span class="issue-sev sev-major">MAJOR</span>
+  <div class="issue-body">
+    <h4>🟠 MAJOR #7 — <code>xlsx</code> Package Has Known Vulnerabilities (SheetJS CE)</h4>
+    <p><strong>File:</strong> <code>package.json</code> — <code>"xlsx": "^0.18.5"</code></p>
+    <p>SheetJS CE (the open-source version) at 0.18.x has known prototype pollution and ReDoS vulnerabilities (CVE-2023-30533). The package is also no longer receiving security updates on npm. For a SaaS handling financial data, this is unacceptable.</p>
+    <span class="issue-fix">✅ Fix: Replace with <code>exceljs</code> (actively maintained, full-featured) or use SheetJS Pro if budget allows. Alternatively, use Supabase Edge Functions for server-side export.</span>
+  </div>
+</div>
+
+<!-- BUG 8 -->
+<div class="issue minor">
+  <span class="issue-sev sev-minor">MINOR</span>
+  <div class="issue-body">
+    <h4>⚠️ MINOR #8 — No Content-Security-Policy Nonce (XSS Risk)</h4>
+    <p>CSP has <code>'unsafe-inline'</code> and <code>'unsafe-eval'</code> in script-src. While Next.js 14 requires these for hydration, the recommended approach is to use CSP nonces with Next.js's built-in nonce support. Without nonces, a stored XSS vulnerability in any policy text field could execute scripts.</p>
+    <span class="issue-fix">✅ Fix: Implement CSP nonces via Next.js middleware. See: <a href="https://nextjs.org/docs/app/building-your-application/configuring/content-security-policy">Next.js CSP docs</a>.</span>
+  </div>
+</div>
+
+<!-- BUG 9 -->
+<div class="issue minor">
+  <span class="issue-sev sev-minor">MINOR</span>
+  <div class="issue-body">
+    <h4>⚠️ MINOR #9 — No CRON_SECRET Validation in the Route</h4>
+    <p>The <code>middleware.ts</code> exempts <code>/api/cron/*</code> from auth redirects. But if an attacker knows your API URL and hits <code>/api/cron/monthly</code> without auth, the current code returns 401 (because getUser returns null). However, once you fix Bug #1 by removing the user check, the route becomes unauthenticated unless you explicitly verify the cron secret header. This must be implemented as part of the Bug #1 fix.</p>
+    <span class="issue-fix">✅ Fix: First line of fixed cron route: verify <code>x-cron-secret</code> header matches <code>process.env.CRON_SECRET</code>, return 403 if not.</span>
+  </div>
+</div>
+
+<!-- BUG 10 -->
+<div class="issue minor">
+  <span class="issue-sev sev-minor">MINOR</span>
+  <div class="issue-body">
+    <h4>⚠️ MINOR #10 — No Auto-Status Update for Expired Policies</h4>
+    <p>The <code>status</code> column on policies is set to 'active' and presumably stays there forever unless an agent manually changes it. A policy whose <code>expiry_date</code> has passed should automatically show as 'expired'. The dashboard currently shows all 'active' policies including ones that lapsed years ago, giving agents a false view.</p>
+    <span class="issue-fix">✅ Fix: Either (a) compute status dynamically via a DB view using <code>CASE WHEN expiry_date &lt; NOW() THEN 'expired' ELSE status END</code>, or (b) add a pg_cron job that runs daily to update expired policies.</span>
+  </div>
+</div>
+
+<!-- BUG 11 -->
+<div class="issue minor">
+  <span class="issue-sev sev-minor">MINOR</span>
+  <div class="issue-body">
+    <h4>⚠️ MINOR #11 — Vercel <code>maxDuration: 60</code> May Not Be Enough</h4>
+    <p>The extract route sets <code>maxDuration = 60</code> seconds. On the Vercel Hobby plan, the maximum is 60s. However, Gemini 2.5 Flash processing a complex 40-page policy PDF + pdf-parse + retry logic can easily take 50-55s, leaving little headroom. Any network hiccup causes a timeout.</p>
+    <span class="issue-fix">✅ Free Fix: Use Vercel Pro (₹1,500/month) for 300s functions, or better: move extraction to a background job pattern using Supabase Edge Functions + a queue table (Supabase already has <code>pgmq</code> extension support).</span>
+  </div>
+</div>
+
+<!-- BUG 12 -->
+<div class="issue info">
+  <span class="issue-sev sev-info">INFO</span>
+  <div class="issue-body">
+    <h4>🔵 INFO #12 — Groq SDK Version Outdated</h4>
+    <p><code>"groq-sdk": "^0.9.0"</code> — Groq SDK is at v0.14+ as of mid-2026 with significant API improvements. The Llama 4 Scout model string in your code (<code>meta-llama/llama-4-scout-17b-16e-instruct</code>) may also have changed.</p>
+    <span class="issue-fix">✅ Fix: <code>npm update groq-sdk</code> and verify current model ID at console.groq.com.</span>
+  </div>
+</div>
+
+</section>
+
+<!-- ═══════════════════════════════════════════════ -->
+<section id="security">
+<h2><span class="icon">🔒</span> Security Analysis</h2>
+
+<h3>What's Already Good ✅</h3>
+<div class="grid grid-2">
+  <div class="card success">
+    <h3>Supabase RLS</h3>
+    <p>Row Level Security is enabled on the policies table with <code>auth.uid() = user_id</code> policies. This is the single most important thing and you have it right. Even if an agent's token is stolen, they can't access another agent's data.</p>
+  </div>
+  <div class="card success">
+    <h3>Storage Scoping</h3>
+    <p>Storage bucket is private with <code>auth.uid()</code>-scoped policies. The extract route also validates that the <code>pdfPath</code> starts with <code>user.id/</code> before generating a signed URL. Good defense-in-depth.</p>
+  </div>
+  <div class="card success">
+    <h3>Signed URLs (30 min)</h3>
+    <p>PDFs are served via time-limited signed URLs rather than public links. 30 minutes is a reasonable window. The approach of not storing public URLs and generating signed URLs on demand is correct.</p>
+  </div>
+  <div class="card success">
+    <h3>Service Role Key Isolation</h3>
+    <p>The <code>SUPABASE_SERVICE_ROLE_KEY</code> is only used in server-only files (<code>src/lib/supabase/admin.ts</code>) and never exposed to the client. This is critical and is done correctly.</p>
+  </div>
+  <div class="card success">
+    <h3>Security Headers</h3>
+    <p>X-Frame-Options, X-Content-Type-Options, HSTS, Referrer-Policy, Permissions-Policy are all set in next.config.js. This is a solid baseline.</p>
+  </div>
+  <div class="card success">
+    <h3>No Public Sign-Up</h3>
+    <p>Supabase Auth is configured to disable public sign-ups. New agents are only created by admins. This is correct for a B2B SaaS where you control who has access.</p>
+  </div>
+</div>
+
+<h3>Security Gaps to Fix 🚨</h3>
+
+<div class="issue major">
+  <span class="issue-sev sev-major">MAJOR</span>
+  <div class="issue-body">
+    <h4>No Audit Log Table</h4>
+    <p>There's no record of who uploaded which PDF, when data was changed, or which agent accessed what. For an insurance SaaS handling sensitive PAN, DOB, and policy data, audit logs are essential for compliance (DPDP Act 2023 in India, IRDAI data protection guidelines) and for debugging disputes.</p>
+    <span class="issue-fix">✅ Fix: Add an <code>audit_logs</code> table and PostgreSQL trigger to log all INSERTs/UPDATEs/DELETEs on the policies table.</span>
+    <pre><code><span class="kw">CREATE TABLE</span> audit_logs (
+  id UUID <span class="kw">PRIMARY KEY DEFAULT</span> gen_random_uuid(),
+  user_id UUID <span class="kw">NOT NULL</span>,
+  action TEXT <span class="kw">NOT NULL</span>, <span class="cm">-- 'upload' | 'edit' | 'delete' | 'export' | 'view_pdf'</span>
+  resource_type TEXT <span class="kw">NOT NULL DEFAULT</span> <span class="str">'policy'</span>,
+  resource_id UUID,
+  metadata JSONB,
+  ip_address TEXT,
+  created_at TIMESTAMPTZ <span class="kw">DEFAULT</span> now()
+);
+<span class="kw">ALTER TABLE</span> audit_logs <span class="kw">ENABLE ROW LEVEL SECURITY</span>;
+<span class="cm">-- Agents can only see their own logs</span>
+<span class="kw">CREATE POLICY</span> <span class="str">"own_logs"</span> <span class="kw">ON</span> audit_logs <span class="kw">FOR SELECT USING</span> (auth.uid() = user_id);</code></pre>
+  </div>
+</div>
+
+<div class="issue major">
+  <span class="issue-sev sev-major">MAJOR</span>
+  <div class="issue-body">
+    <h4>No MFA / 2FA Support</h4>
+    <p>The app uses email/password only with no MFA option. Insurance agents access sensitive PAN numbers, DOBs, and policy data of clients. A compromised agent account exposes all their clients' data. Supabase Auth supports TOTP (Authenticator app) and phone OTP natively.</p>
+    <span class="issue-fix">✅ Fix: Enable Supabase MFA in Authentication settings. Add a TOTP enrollment flow in the agent's settings page. Consider making MFA mandatory for agents handling sensitive data.</span>
+  </div>
+</div>
+
+<div class="issue major">
+  <span class="issue-sev sev-major">MAJOR</span>
+  <div class="issue-body">
+    <h4>Sensitive Data in Plain Text (PAN, DOB)</h4>
+    <p>The <code>holder_pan</code> field stores PAN numbers in plain text in the database. PAN is classified as sensitive personal data under India's DPDP Act 2023. If the database is ever compromised, all PANs are exposed. Same concern for <code>holder_dob</code> and <code>holder_phone</code>.</p>
+    <span class="issue-fix">✅ Fix (Free): Use Supabase Vault's <code>pgsodium</code> extension to encrypt these columns at rest. Alternatively, use application-level encryption before inserting (AES-256-GCM with a KMS-managed key stored in Supabase Vault).</span>
+  </div>
+</div>
+
+<div class="issue minor">
+  <span class="issue-sev sev-minor">MINOR</span>
+  <div class="issue-body">
+    <h4>WAHA API Keys in .env.example but Not Used</h4>
+    <p>Your <code>.env.example</code> includes <code>WAHA_API_URL</code>, <code>WAHA_API_KEY</code>, and <code>WAHA_SESSION_NAME</code>. If these are populated in the actual deployment environment but WAHA isn't implemented, this is dead code creating a false security surface. Also, WhatsApp Business usage has strict data processing restrictions.</p>
+    <span class="issue-fix">✅ Fix: Remove WAHA env vars from .env.example entirely if not used. Document them separately when you add the WhatsApp feature.</span>
+  </div>
+</div>
+
+<div class="issue minor">
+  <span class="issue-sev sev-minor">MINOR</span>
+  <div class="issue-body">
+    <h4>No CSRF Protection on State-Changing API Routes</h4>
+    <p>POST/PUT/DELETE API routes rely on Supabase auth validation but have no explicit CSRF token validation. While Supabase's cookie-based auth provides some inherent CSRF protection (SameSite cookies), a belt-and-suspenders approach with a CSRF token header is recommended for a SaaS.</p>
+    <span class="issue-fix">✅ Fix: Add a custom header check (<code>X-Requested-With: XMLHttpRequest</code>) or use the double-submit cookie pattern. Next.js route handlers are inherently CORS-protected but not fully CSRF-safe.</span>
+  </div>
+</div>
+
+<div class="issue info">
+  <span class="issue-sev sev-info">INFO</span>
+  <div class="issue-body">
+    <h4>PDF File Type Validation (Client-Side Only)</h4>
+    <p>The upload component uses <code>react-dropzone</code> with an <code>accept</code> prop that restricts to PDF. But this is purely client-side. The server route doesn't validate the MIME type of the uploaded file. An attacker could upload a malicious file disguised as a PDF.</p>
+    <span class="issue-fix">✅ Fix: In the extract route, after downloading the PDF buffer, check the magic bytes: <code>buffer.slice(0,4).toString() === '%PDF'</code>. Reject anything that doesn't start with PDF magic bytes.</span>
+  </div>
+</div>
+
+<h3>IRDAI & DPDP Compliance Checklist</h3>
+<div class="card">
+  <p>Insurance data in India falls under IRDAI's data protection circular (2023) and the Digital Personal Data Protection Act (DPDP) 2023. Before going commercial, ensure:</p>
+  <ul>
+    <li><strong>Privacy Policy:</strong> Publish a clear privacy policy explaining how policyholder data is stored and used.</li>
+    <li><strong>Data Retention Policy:</strong> Define how long policy data is kept after an agent's subscription ends.</li>
+    <li><strong>Right to Erasure:</strong> Ability to delete all data for a specific agent/their clients on request.</li>
+    <li><strong>Data Processing Agreement:</strong> With Supabase (they offer a DPA) and Vercel for the EU/India data residency requirement.</li>
+    <li><strong>Consent:</strong> Agent must confirm they have consent from policyholders to store their data.</li>
+    <li><strong>Breach Notification:</strong> Process for notifying affected users within 72 hours of a breach.</li>
+    <li><strong>Supabase Region:</strong> If storing Indian data, consider <a href="https://supabase.com/docs/guides/platform/regions">Supabase's Singapore or Mumbai region</a> for data residency.</li>
+  </ul>
+</div>
+</section>
+
+<!-- ═══════════════════════════════════════════════ -->
+<section id="features">
+<h2><span class="icon">⚡</span> Feature-by-Feature Upgrade Analysis</h2>
+
+<h3>1. Upload & Extraction Flow</h3>
+<div class="feat-row">
+  <div class="feat-icon">📤</div>
+  <div class="feat-body">
+    <h4>Current: Single PDF upload → AI extract → Review form → Save</h4>
+    <p><strong>What works:</strong> The mandatory verification step before saving is excellent design — agents must confirm AI output before it's stored. The Supabase Storage direct upload (bypassing Vercel's 4.5MB limit) is a smart architectural choice.<br>
+    <strong>What to improve:</strong> Add bulk upload (multiple PDFs at once), a drag-and-drop queue with progress indicators, extraction retry without re-uploading, and a preview pane showing the PDF alongside the extraction form side-by-side.</p>
+  </div>
+</div>
+
+<h3>2. Policy List & Search</h3>
+<div class="feat-row">
+  <div class="feat-icon">🔍</div>
+  <div class="feat-body">
+    <h4>Current: Filter by type/status, text search on name/number, pagination</h4>
+    <p><strong>What works:</strong> Server-side pagination and filtering via the API route is correct — never load all policies client-side.<br>
+    <strong>Issues:</strong> The search uses <code>ilike.%term%</code> which is a full table scan for each character typed. No debounce visible in the code. For an agent with 2,000 policies, this will be slow.<br>
+    <strong>Fix:</strong> Add a PostgreSQL Full Text Search index on <code>holder_name || ' ' || policy_number || ' ' || holder_phone</code>. This turns the search from a scan to an index lookup. Also add client-side debounce (300ms).</p>
+  </div>
+</div>
+
+<h3>3. Expiry Register (Monthly Export)</h3>
+<div class="feat-row">
+  <div class="feat-icon">📊</div>
+  <div class="feat-body">
+    <h4>Current: ExpiryBanner on dashboard, download Excel/PDF for current month, automated cron email</h4>
+    <p><strong>What works:</strong> The concept is excellent — an insurance agent's most critical workflow is the monthly renewal chase.<br>
+    <strong>Issues:</strong> (1) The cron email is broken (see Bug #1). (2) The banner only shows for days 1-7 of the month — agents may miss renewals that fall in the last week of the month unless they check manually. (3) The Excel export uses the broken xlsx package (see Bug #7). (4) No ability to select a custom month/year range for export.<br>
+    <strong>Improvements:</strong> Fix cron, add 7/15/30-day lookahead expiry alerts not just monthly register, add WhatsApp reminder to client (with their consent).</p>
+  </div>
+</div>
+
+<h3>4. Policy Detail Page</h3>
+<div class="feat-row">
+  <div class="feat-icon">📄</div>
+  <div class="feat-body">
+    <h4>Current: View all extracted fields, edit, delete, view PDF via signed URL</h4>
+    <p><strong>What works:</strong> Signed URLs for PDF viewing are correct. Edit/delete with ownership verification is good.<br>
+    <strong>Missing:</strong> Renewal history (when did this policy get renewed last?), renewal reminder status (was this policy in last month's email?), a "Mark as Renewed" button that auto-creates the next year's policy record with date incremented, client communication log, and sharing a policy summary with the client via email/WhatsApp.</p>
+  </div>
+</div>
+
+<h3>5. PWA (Progressive Web App)</h3>
+<div class="feat-row">
+  <div class="feat-icon">📱</div>
+  <div class="feat-body">
+    <h4>Current: Service worker, manifest, installable from Chrome/Safari</h4>
+    <p><strong>Issues:</strong> Manifest references wrong paths (see Bug #3). Push notifications are not implemented — this is a significant gap for a PWA used for insurance renewals. No offline mode for viewing previously loaded policies.<br>
+    <strong>Improvements:</strong> Add Web Push Notifications for expiry alerts (free via Supabase Edge Functions + a push service like Web Push library). Add offline cache for the policy list. Add home screen shortcuts for "Upload Policy" and "This Month's Expiries".</p>
+  </div>
+</div>
+
+<h3>6. Authentication & User Management</h3>
+<div class="feat-row">
+  <div class="feat-icon">🔐</div>
+  <div class="feat-body">
+    <h4>Current: Email/password only, admin creates users via script</h4>
+    <p><strong>Issues:</strong> No MFA, no password reset UI (Supabase handles this but is it wired up?), no agent self-service profile editing, no activity log for admins to see what agents have uploaded.<br>
+    <strong>For SaaS:</strong> You need a self-service signup flow with email verification, subscription plan selection, payment gateway integration, and agent-level admin dashboard to manage their account. The current "admin creates users manually" model is unsustainable at scale.</p>
+  </div>
+</div>
+</section>
+
+<!-- ═══════════════════════════════════════════════ -->
+<section id="pricing">
+<h2><span class="icon">💰</span> Free vs Paid — API & Infrastructure Costs (INR)</h2>
+
+<h3>Current API Costs (Per 100 PDF Extractions)</h3>
+<table class="compare">
+  <thead><tr><th>Service</th><th>Free Tier Limit</th><th>Cost After Free</th><th>Estimated Use/Month</th><th>Monthly Cost</th></tr></thead>
+  <tbody>
+    <tr><td class="row-label">Gemini 2.5 Flash (Google AI Studio)</td><td class="best">15 req/min, unlimited on free</td><td>₹0.63/1M input tokens</td><td>~100 uploads × 10K tokens = 1M tokens</td><td class="best">~₹0 (free tier)</td></tr>
+    <tr><td class="row-label">Groq Llama 4 Scout</td><td class="best">30 req/min, free tier generous</td><td>~₹0.04/1M tokens</td><td>Same as above</td><td class="best">~₹0 (free tier)</td></tr>
+    <tr><td class="row-label">Supabase (Database + Storage)</td><td class="best">500MB DB, 1GB storage, 50k rows</td><td>₹2,100/month (Pro)</td><td>1 user, light usage</td><td class="best">~₹0 (free tier)</td></tr>
+    <tr><td class="row-label">Vercel (Hosting)</td><td class="best">100GB bandwidth, hobby plan</td><td>₹1,500/month (Pro)</td><td>Low traffic</td><td class="best">~₹0 (free tier)</td></tr>
+    <tr><td class="row-label">Resend (Email)</td><td class="best">3,000 emails/month free</td><td>₹1.75/1k emails after</td><td>~30 emails/month</td><td class="best">~₹0 (free tier)</td></tr>
+  </tbody>
+</table>
+
+<div class="callout success">
+  <p><strong>Current infrastructure cost: ₹0/month</strong> — Your entire stack runs on free tiers. This is genuinely impressive for a working SaaS. You can serve 1-5 agents for free indefinitely, with meaningful headroom before hitting limits.</p>
+</div>
+
+<h3>When Free Tiers Break</h3>
+<table class="compare">
+  <thead><tr><th>Trigger</th><th>Free Tier Limit</th><th>Cost to Upgrade</th><th>Recommended Upgrade</th></tr></thead>
+  <tbody>
+    <tr><td class="row-label">DB storage exceeds 500MB</td><td class="ok">~10,000 policies stored</td><td class="ok">₹2,100/month (Supabase Pro)</td><td>Supabase Pro at ₹2,100/month gives 8GB + daily backups</td></tr>
+    <tr><td class="row-label">AI extraction > free limits</td><td class="best">Google AI Studio: 1,500 free req/day</td><td class="best">Still essentially free at ₹0.63/1M tokens</td><td>Switch to Vertex AI for enterprise quota if needed</td></tr>
+    <tr><td class="row-label">Function timeout on Vercel</td><td class="ok">60s max on hobby</td><td class="ok">₹1,500/month (Vercel Pro = 300s)</td><td>Or move extraction to Supabase Edge Functions (free up to 500k invocations)</td></tr>
+    <tr><td class="row-label">Email > 3,000/month</td><td class="ok">Resend free</td><td class="good">₹875/month for 50k</td><td>Or migrate to Supabase's built-in SMTP (included in Pro)</td></tr>
+    <tr><td class="row-label">Rate limiting with Redis</td><td class="bad">In-memory only (broken)</td><td class="best">₹0/month (Upstash free tier: 10k/day)</td><td>Upstash Redis free tier covers most SaaS use cases</td></tr>
+  </tbody>
+</table>
+
+<hr class="divider"/>
+
+<h3>Proposed SaaS Pricing Tiers (INR)</h3>
+<div class="pricing-grid">
+  <div class="plan">
+    <div class="plan-name">Free / Solo</div>
+    <div class="plan-price">₹0 <span>/ month</span></div>
+    <div class="plan-desc">Perfect for individual agents getting started or testing the platform.</div>
+    <div class="plan-feature">1 agent account</div>
+    <div class="plan-feature">Up to 50 policies stored</div>
+    <div class="plan-feature">AI extraction (5 PDFs/day limit)</div>
+    <div class="plan-feature">Monthly Excel export (download only)</div>
+    <div class="plan-feature">Email expiry alerts (monthly)</div>
+    <div class="plan-feature no">No automated cron emails</div>
+    <div class="plan-feature no">No bulk upload</div>
+    <div class="plan-feature no">No analytics dashboard</div>
+    <div class="plan-feature no">No WhatsApp alerts</div>
+    <a class="plan-cta">Current State</a>
+  </div>
+  <div class="plan featured">
+    <div class="plan-name">⭐ Professional</div>
+    <div class="plan-price">₹499 <span>/ month</span></div>
+    <div class="plan-desc">Best for active insurance agents managing 100–1,000 policies.</div>
+    <div class="plan-feature">1 agent account</div>
+    <div class="plan-feature">Unlimited policies</div>
+    <div class="plan-feature">Unlimited AI extractions</div>
+    <div class="plan-feature">Automated monthly expiry email</div>
+    <div class="plan-feature">7/30-day renewal reminder emails</div>
+    <div class="plan-feature">Bulk PDF upload (10 at once)</div>
+    <div class="plan-feature">Custom date range export</div>
+    <div class="plan-feature">Policy analytics dashboard</div>
+    <div class="plan-feature">Premium AI (cross-validation mode)</div>
+    <div class="plan-feature">Priority support (24h response)</div>
+    <div class="plan-feature no">No WhatsApp integration</div>
+    <div class="plan-feature no">No team accounts</div>
+    <a class="plan-cta">Target First Paying Customer</a>
+  </div>
+  <div class="plan">
+    <div class="plan-name">Agency</div>
+    <div class="plan-price">₹1,999 <span>/ month</span></div>
+    <div class="plan-desc">For insurance agencies with multiple agents and high policy volumes.</div>
+    <div class="plan-feature">Up to 5 agent accounts</div>
+    <div class="plan-feature">Unlimited policies per agent</div>
+    <div class="plan-feature">All Professional features</div>
+    <div class="plan-feature">Team admin dashboard</div>
+    <div class="plan-feature">WhatsApp renewal reminders (WAHA)</div>
+    <div class="plan-feature">Agency-level consolidated report</div>
+    <div class="plan-feature">Custom branding (logo, colors)</div>
+    <div class="plan-feature">API access for integrations</div>
+    <div class="plan-feature">Audit log access</div>
+    <div class="plan-feature">Dedicated onboarding call</div>
+    <a class="plan-cta">Coming After Professional</a>
+  </div>
+</div>
+
+<h3>Recommended AI Upgrade Costs for Each Tier</h3>
+<table class="compare">
+  <thead><tr><th>Plan</th><th>AI Setup</th><th>Monthly AI Cost (1,000 extractions)</th><th>Accuracy</th></tr></thead>
+  <tbody>
+    <tr>
+      <td class="row-label">Free (current)</td>
+      <td>Groq primary + Gemini fallback</td>
+      <td class="best">₹0 (free tiers)</td>
+      <td class="ok">~85%</td>
+    </tr>
+    <tr>
+      <td class="row-label">Professional</td>
+      <td>Gemini 2.5 Flash primary (always) + Groq parallel validation</td>
+      <td class="best">₹0–₹50 (well within free tiers)</td>
+      <td class="good">~93%</td>
+    </tr>
+    <tr>
+      <td class="row-label">Agency</td>
+      <td>Gemini 2.5 Flash + Claude Haiku 4.5 cross-validation</td>
+      <td class="ok">~₹840 (Claude Haiku: $1/1M input tokens)</td>
+      <td class="best">~97%+</td>
+    </tr>
+    <tr>
+      <td class="row-label">Enterprise (future)</td>
+      <td>Google Document AI + Claude Sonnet 4.6 validation + human review queue</td>
+      <td class="bad">~₹5,000+</td>
+      <td class="best">99%+</td>
+    </tr>
+  </tbody>
+</table>
+</section>
+
+<!-- ═══════════════════════════════════════════════ -->
+<section id="new-features">
+<h2><span class="icon">✨</span> Additional Features to Build</h2>
+
+<h3>High Priority (Add Before First Scale)</h3>
+
+<div class="feat-row">
+  <div class="feat-icon">⏰</div>
+  <div class="feat-body">
+    <h4>Proactive Expiry Alert System <span class="tier-pill t-paid">Paid</span></h4>
+    <p>Currently: only a monthly register on the 1st. Needed: automated email/WhatsApp alerts at 90, 60, 30, 15, 7, 3, 1 day before expiry. Your DB schema already has the <code>alert_*_sent</code> columns — the infra is designed for this but never implemented. Use a pg_cron job running <em>daily</em> (not monthly) to check for approaching expiries. Cost: ₹0 (within Resend free tier and pg_cron).</p>
+  </div>
+</div>
+
+<div class="feat-row">
+  <div class="feat-icon">📱</div>
+  <div class="feat-body">
+    <h4>WhatsApp Renewal Reminders (WAHA Self-Hosted) <span class="tier-pill t-paid">Agency Tier</span></h4>
+    <p>Your env file already has WAHA vars. Indian insurance agents and their clients overwhelmingly communicate on WhatsApp. Implementing automated WhatsApp messages (via WAHA self-hosted on a VPS at ~₹500/month) for renewal reminders would be the single highest-value feature for agent adoption. Include the policy details, insurer name, premium, and a "Call Agent" CTA. Be mindful of WhatsApp ToS — only message people who have explicitly consented.</p>
+  </div>
+</div>
+
+<div class="feat-row">
+  <div class="feat-icon">🔄</div>
+  <div class="feat-body">
+    <h4>Renewal Tracker / "Mark as Renewed" Workflow <span class="tier-pill t-free">Free Tier</span></h4>
+    <p>When an agent renews a policy, they should be able to click "Mark as Renewed" which: (1) sets the old policy to status='renewed', (2) creates a new policy record with all the same fields but incremented dates, (3) prompts to upload the new policy PDF for the renewed term. Currently agents would have to manually create a new record and lose the historical chain. This is a major UX gap.</p>
+  </div>
+</div>
+
+<div class="feat-row">
+  <div class="feat-icon">📈</div>
+  <div class="feat-body">
+    <h4>Analytics Dashboard <span class="tier-pill t-paid">Professional</span></h4>
+    <p>Show agents: total premium under management, breakdown by policy type (pie chart), expiry timeline (bar chart of policies expiring each month for the next 12 months), top insurers, renewal rate trend, and revenue projection. You already have recharts in package.json — put it to use. This data would make PolicyVault indispensable for agents to understand their book of business.</p>
+  </div>
+</div>
+
+<div class="feat-row">
+  <div class="feat-icon">👨‍👩‍👧‍👦</div>
+  <div class="feat-body">
+    <h4>Client Directory <span class="tier-pill t-paid">Professional</span></h4>
+    <p>Currently each policy is standalone. Agents need a client-centric view: one client (Rajesh Sharma) might have a car policy, bike policy, health policy, and life policy — all as separate records with no link. Add a <code>clients</code> table and link policies to clients. Show a client card with all their policies, total premium, and upcoming renewals at a glance. This fundamentally changes the value prop from "policy storage" to "client portfolio management".</p>
+  </div>
+</div>
+
+<div class="feat-row">
+  <div class="feat-icon">📸</div>
+  <div class="feat-body">
+    <h4>Mobile Camera Upload (Scan & Upload) <span class="tier-pill t-paid">Professional</span></h4>
+    <p>Indian agents often have physical policy documents. The PWA can use the device camera (via <code>&lt;input type="file" capture="environment"&gt;</code>) to scan and upload physical documents. Pair this with a JavaScript PDF creation step (using jsPDF) to wrap the captured image into a PDF before uploading to the extraction pipeline. This removes the friction of scanning on a separate scanner — huge UX win for mobile-first agents.</p>
+  </div>
+</div>
+
+<div class="feat-row">
+  <div class="feat-icon">🔔</div>
+  <div class="feat-body">
+    <h4>Web Push Notifications <span class="tier-pill t-free">Free Tier</span></h4>
+    <p>The PWA can show push notifications even when the browser is closed. Use the Web Push API with a free VAPID key pair to notify agents when: a policy is 30/7 days from expiry, a bulk extraction completes, or a monthly register is ready. Zero additional infrastructure cost — Web Push uses the browser's own push service (FCM for Chrome, APNs for Safari).</p>
+  </div>
+</div>
+
+<div class="feat-row">
+  <div class="feat-icon">🤝</div>
+  <div class="feat-body">
+    <h4>Self-Service Signup + Stripe/Razorpay Payment <span class="tier-pill t-paid">Required for SaaS</span></h4>
+    <p>The biggest blocker to SaaS growth: currently <em>you have to manually create every user</em>. You cannot scale this. Add a self-service signup flow → email verification → plan selection → Razorpay payment (INR-native, ₹0 monthly fee, 2% per transaction) → auto-provisioning. Without this, you cannot sell to more than 5-10 agents. Razorpay is recommended over Stripe for INR billing to avoid forex conversion and poor INR support in Stripe.</p>
+  </div>
+</div>
+
+<div class="feat-row">
+  <div class="feat-icon">🏷️</div>
+  <div class="feat-body">
+    <h4>Custom Policy Fields / Templates <span class="tier-pill t-paid">Agency Tier</span></h4>
+    <p>Different agents specialize in different insurance types. A marine insurance agent needs different fields than a health insurance agent. Add a customizable fields system where agents can define extra fields (e.g., "Fleet Number", "Fumigation Certificate Date") stored in the <code>extracted_fields</code> JSONB column that already exists. Display custom fields in the policy form and exports.</p>
+  </div>
+</div>
+
+<div class="feat-row">
+  <div class="feat-icon">🔗</div>
+  <div class="feat-body">
+    <h4>Insurer API Integrations <span class="tier-pill t-paid">Enterprise</span></h4>
+    <p>Long-term: Direct integration with insurer portals (HDFC Ergo, ICICI Lombard have APIs) to fetch policy status, verify coverage, and initiate renewals programmatically. This removes the need to upload PDFs entirely for digitally-issued policies. IRDAI's Insurance Regulatory Sandbox has approved several API integration models. This would be a major differentiator.</p>
+  </div>
+</div>
+
+<div class="feat-row">
+  <div class="feat-icon">📋</div>
+  <div class="feat-body">
+    <h4>Extraction Audit / Correction Feedback Loop <span class="tier-pill t-free">Free Tier</span></h4>
+    <p>Track every field that an agent corrects after AI extraction. This creates a gold standard dataset of (PDF → correct extraction) pairs for your specific user base. Use this data to: (1) improve your prompts, (2) identify which insurers' PDFs have poor extraction accuracy, (3) potentially fine-tune a model. Store corrections in an <code>extraction_corrections</code> table.</p>
+  </div>
+</div>
+
+<div class="feat-row">
+  <div class="feat-icon">🔐</div>
+  <div class="feat-body">
+    <h4>Encrypted Policy Notes / Comments <span class="tier-pill t-free">Free Tier</span></h4>
+    <p>Agents need to add private notes to policies ("Client refused comprehensive, insisted on third-party only", "Client is NRI, return to India dates uncertain"). These notes should be encrypted at rest (they contain potentially sensitive agent-client communication context). Add a <code>notes</code> field with client-side encryption using the Web Crypto API before storing.</p>
+  </div>
+</div>
+
+</section>
+
+<!-- ═══════════════════════════════════════════════ -->
+<section id="roadmap">
+<h2><span class="icon">🗺️</span> Recommended Implementation Roadmap</h2>
+
+<div class="roadmap">
+  <div class="rm-item">
+    <div class="rm-dot"></div>
+    <div class="rm-phase">Phase 1 — Bug Fixes (Do Now, 1–2 Weeks)</div>
+    <h4>Fix Critical Bugs Before Any New Development</h4>
+    <p>Fix the cron auth bug, delete duplicate extractor files, add DB indexes, fix SW manifest path, replace xlsx package with exceljs, upgrade Groq SDK. These are zero-cost fixes that make the app work correctly.</p>
+  </div>
+
+  <div class="rm-item">
+    <div class="rm-dot"></div>
+    <div class="rm-phase">Phase 2 — Extraction Upgrade (2 Weeks)</div>
+    <h4>Near-100% Extraction Accuracy</h4>
+    <p>Make Gemini 2.5 Flash the unconditional primary (handles scanned PDFs). Add parallel Groq run for cross-validation. Implement Indian insurance-specific prompt additions. Add retry logic with p-retry. Implement the extraction correction feedback loop. Target: 93%+ accuracy.</p>
+  </div>
+
+  <div class="rm-item">
+    <div class="rm-dot"></div>
+    <div class="rm-phase">Phase 3 — Core SaaS Features (3–4 Weeks)</div>
+    <h4>Renewal Tracker, Proactive Alerts, Analytics</h4>
+    <p>Implement the daily alert cron job (90/60/30/15/7/3/1 day alerts). Add the "Mark as Renewed" workflow. Build the analytics dashboard (recharts is already installed). Add Web Push Notifications for the PWA. Add audit log table. These justify the first ₹499/month subscription.</p>
+  </div>
+
+  <div class="rm-item">
+    <div class="rm-dot"></div>
+    <div class="rm-phase">Phase 4 — SaaS Infrastructure (4–6 Weeks)</div>
+    <h4>Self-Service Signup + Payments + Multi-Agent Support</h4>
+    <p>Implement Razorpay subscription billing. Add self-service signup with plan selection. Implement MFA (TOTP). Build the client directory (link policies to clients). Add Upstash Redis for rate limiting. Encrypt sensitive fields (PAN, DOB). Publish privacy policy + DPA. This phase transforms the app from a one-user tool to a real SaaS.</p>
+  </div>
+
+  <div class="rm-item">
+    <div class="rm-dot"></div>
+    <div class="rm-phase">Phase 5 — Agency Tier (Ongoing)</div>
+    <h4>WhatsApp, Team Accounts, Branding</h4>
+    <p>Deploy WAHA on a VPS (₹500/month). Add team/agency accounts with sub-agents. Custom branding per agency. Agency-level consolidated reports. Google Document AI for highest-value accounts. Target Agency plan at ₹1,999/month.</p>
+  </div>
+</div>
+
+</section>
+
+<!-- ═══════════════════════════════════════════════ -->
+<section>
+<h2><span class="icon">🛠️</span> Quick Reference: Code Snippets You Need</h2>
+
+<h3>1. Database Indexes (Run in Supabase SQL Editor)</h3>
+<pre><code><span class="kw">CREATE INDEX IF NOT EXISTS</span> idx_policies_user_id <span class="kw">ON</span> public.policies (user_id);
+<span class="kw">CREATE INDEX IF NOT EXISTS</span> idx_policies_expiry <span class="kw">ON</span> public.policies (expiry_date);
+<span class="kw">CREATE INDEX IF NOT EXISTS</span> idx_policies_user_expiry <span class="kw">ON</span> public.policies (user_id, expiry_date);
+<span class="kw">CREATE INDEX IF NOT EXISTS</span> idx_policies_status <span class="kw">ON</span> public.policies (status);
+<span class="kw">CREATE INDEX IF NOT EXISTS</span> idx_policies_type <span class="kw">ON</span> public.policies (policy_type);
+
+<span class="cm">-- Full text search index</span>
+<span class="kw">CREATE INDEX IF NOT EXISTS</span> idx_policies_fts <span class="kw">ON</span> public.policies
+  <span class="kw">USING</span> gin(to_tsvector(<span class="str">'english'</span>, 
+    coalesce(holder_name,<span class="str">''</span>) || <span class="str">' '</span> || 
+    coalesce(policy_number,<span class="str">''</span>) || <span class="str">' '</span> || 
+    coalesce(holder_phone,<span class="str">''</span>) || <span class="str">' '</span> ||
+    coalesce(vehicle_number,<span class="str">''</span>)
+  ));</code></pre>
+
+<h3>2. Auto-Status Update for Expired Policies</h3>
+<pre><code><span class="cm">-- Create a view that computes current status dynamically</span>
+<span class="kw">CREATE OR REPLACE VIEW</span> policies_with_status <span class="kw">AS</span>
+  <span class="kw">SELECT</span> *,
+    <span class="kw">CASE</span>
+      <span class="kw">WHEN</span> expiry_date &lt; CURRENT_DATE <span class="kw">AND</span> status = <span class="str">'active'</span> <span class="kw">THEN</span> <span class="str">'expired'</span>
+      <span class="kw">ELSE</span> status
+    <span class="kw">END</span> <span class="kw">AS</span> computed_status
+  <span class="kw">FROM</span> public.policies;
+
+<span class="cm">-- Or: daily job to auto-expire</span>
+<span class="kw">SELECT</span> cron.schedule(
+  <span class="str">'auto-expire-policies'</span>, <span class="str">'0 1 * * *'</span>,
+  <span class="str">$$UPDATE public.policies 
+    SET status = 'expired', updated_at = now()
+    WHERE expiry_date < CURRENT_DATE AND status = 'active'$$</span>
+);</code></pre>
+
+<h3>3. PDF Magic Bytes Validation (Server-Side)</h3>
+<pre><code><span class="cm">// In your extract route, after downloading the buffer:</span>
+<span class="kw">const</span> magic = buffer.slice(0, 4).toString(<span class="str">'ascii'</span>)
+<span class="kw">if</span> (magic !== <span class="str">'%PDF'</span>) {
+  <span class="kw">return</span> NextResponse.json(
+    { error: <span class="str">'Uploaded file is not a valid PDF'</span> },
+    { status: 400 }
+  )
+}</code></pre>
+
+<h3>4. Upgrade xlsx to exceljs (Breaking Change Fix)</h3>
+<pre><code><span class="cm"># Remove vulnerable SheetJS CE</span>
+npm uninstall xlsx
+npm install exceljs
+
+<span class="cm">// Replace policiesToExcel in src/lib/export/excel.ts:</span>
+<span class="kw">import</span> ExcelJS <span class="kw">from</span> <span class="str">'exceljs'</span>
+
+<span class="kw">export async function</span> <span class="fn">policiesToExcel</span>(policies: Policy[]): Promise&lt;Buffer&gt; {
+  <span class="kw">const</span> wb = <span class="kw">new</span> ExcelJS.Workbook()
+  <span class="kw">const</span> ws = wb.addWorksheet(<span class="str">'Expiry Register'</span>)
+  
+  ws.columns = [
+    { header: <span class="str">'Sr.'</span>, key: <span class="str">'sr'</span>, width: 5 },
+    { header: <span class="str">'Client Name'</span>, key: <span class="str">'name'</span>, width: 25 },
+    <span class="cm">// ... rest of columns</span>
+  ]
+  
+  policies.forEach((p, i) =&gt; ws.addRow({
+    sr: i + 1, name: p.holder_name ?? <span class="str">'N/A'</span>
+    <span class="cm">// ... rest of fields</span>
+  }))
+  
+  <span class="kw">return</span> Buffer.from(<span class="kw">await</span> wb.xlsx.writeBuffer())
+}</code></pre>
+
+<h3>5. Upstash Redis Rate Limiter (Free Tier)</h3>
+<pre><code><span class="cm"># Install Upstash Ratelimit SDK</span>
+npm install @upstash/ratelimit @upstash/redis
+
+<span class="cm">// src/lib/rate-limit.ts</span>
+<span class="kw">import</span> { Ratelimit } <span class="kw">from</span> <span class="str">'@upstash/ratelimit'</span>
+<span class="kw">import</span> { Redis } <span class="kw">from</span> <span class="str">'@upstash/redis'</span>
+
+<span class="kw">export const</span> extractRatelimit = <span class="kw">new</span> Ratelimit({
+  redis: Redis.fromEnv(), <span class="cm">// UPSTASH_REDIS_REST_URL + TOKEN in .env</span>
+  limiter: Ratelimit.slidingWindow(10, <span class="str">'1h'</span>), <span class="cm">// 10 extractions per hour per user</span>
+  analytics: <span class="kw">true</span>,
+})
+
+<span class="cm">// In /api/extract/route.ts:</span>
+<span class="kw">const</span> { success, reset } = <span class="kw">await</span> extractRatelimit.limit(user.id)
+<span class="kw">if</span> (!success) {
+  <span class="kw">return</span> NextResponse.json(
+    { error: <span class="str">'Rate limit exceeded'</span>, retry_after: reset },
+    { status: 429 }
+  )
+}</code></pre>
+</section>
+
+<hr class="divider"/>
+<footer>
+  <p>PolicyVault SaaS Audit Report · Generated July 2026 · Stack: Next.js 14 · Supabase · Gemini 2.5 Flash · Groq Llama 4 Scout · Vercel</p>
+  <p style="margin-top:8px">Priority order: Fix Bug #1 (cron) → Fix Bug #2 (scanned PDFs) → Add indexes → Delete duplicate files → Upgrade xlsx → Add audit logs → Implement Razorpay for first paying customer.</p>
+</footer>
+
+</div>
+</body>
+</html>

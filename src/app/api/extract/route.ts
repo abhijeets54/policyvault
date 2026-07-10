@@ -61,6 +61,16 @@ export async function POST(req: NextRequest) {
     const buffer = Buffer.from(await pdfResponse.arrayBuffer())
     console.log(`[extract] PDF downloaded: ${buffer.length} bytes`)
 
+    // 3b. Validate PDF magic bytes — reject non-PDF files
+    const magic = buffer.slice(0, 5).toString('ascii')
+    if (!magic.startsWith('%PDF')) {
+      console.warn(`[extract] Invalid file: magic bytes = ${JSON.stringify(magic)}`)
+      return NextResponse.json(
+        { error: 'Uploaded file is not a valid PDF. Please upload a .pdf file.' },
+        { status: 400 }
+      )
+    }
+
     // 4. Run AI extraction
     const extracted = await extractPolicyFromPDF(buffer)
     console.log(`[extract] Extraction complete. Model used: ${extracted.ai_model_used}`)

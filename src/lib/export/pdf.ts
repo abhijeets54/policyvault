@@ -11,9 +11,10 @@ export function policiesToPdf(policies: Policy[], title: string): Buffer {
 
   autoTable(doc, {
     startY: 80,
-    head: [['Sr.', 'Client', 'Phone', 'Policy #', 'Insurer', 'Type', 'Sum Insured', 'Premium', 'Expiry']],
+    head: [['Sr.', 'Referred By', 'Client', 'Phone', 'Policy #', 'Insurer', 'Type', 'Sum Insured', 'Premium', 'Expiry']],
     body: policies.map((p, i) => [
       i + 1,
+      p.referred_by ?? '',
       p.holder_name ?? '',
       p.holder_phone ?? '',
       p.policy_number ?? '',
