@@ -6,6 +6,7 @@ import { useDropzone } from 'react-dropzone'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { VerificationForm } from '@/components/VerificationForm'
+import type { FieldCorrection } from '@/components/VerificationForm'
 import type { ExtractedPolicyData } from '@/lib/types'
 import { Upload, FileText, AlertCircle, CheckCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
@@ -146,7 +147,7 @@ export default function UploadPage() {
     },
   })
 
-  const handleConfirm = async (formData: Record<string, unknown>) => {
+  const handleConfirm = async (formData: Record<string, unknown>, corrections: FieldCorrection[]) => {
     setUpload(prev => ({ ...prev, isLoading: true, error: null }))
 
     try {
@@ -158,6 +159,7 @@ export default function UploadPage() {
           raw_pdf_url: upload.pdfUrl,
           raw_pdf_path: upload.pdfPath,
           status: 'active',
+          _corrections: corrections,
         }),
       })
 

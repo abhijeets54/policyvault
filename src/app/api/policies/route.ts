@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -77,9 +78,11 @@ export async function POST(req: NextRequest) {
     // are not schema columns — passing them to .insert() causes a PostgREST
     // "column not found in schema cache" 500 error.
     // We preserve both values inside extracted_fields (JSONB) so nothing is lost.
+    // _corrections is our correction tracking payload — also not a DB column.
     const {
       ai_model_used,
       extraction_notes,
+      _corrections,
       extracted_fields: existingExtractedFields,
       ...rest
     } = body
@@ -101,6 +104,40 @@ export async function POST(req: NextRequest) {
       .single()
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+    // ── Log field corrections (if any) for the feedback loop ──
+    if (Array.isArray(_corrections) && _corrections.length > 0 && data?.id) {
+      try {
+        const adminClient = createAdminClient()
+        const correctionRows = _corrections.map((c: {
+          field_name: string
+          ai_value: string | null
+          corrected_value: string | null
+        }) => ({
+          policy_id: data.id,
+          user_id: user.id,
+          field_name: c.field_name,
+          ai_value: c.ai_value,
+          corrected_value: c.corrected_value,
+          insurer_name: rest.insurer_name || null,
+          ai_model_used: ai_model_used || null,
+        }))
+
+        const { error: corrErr } = await adminClient
+          .from('extraction_corrections')
+          .insert(correctionRows)
+
+        if (corrErr) {
+          // Non-fatal: log but don't fail the policy save
+          console.error('[corrections] Failed to save corrections:', corrErr.message)
+        } else {
+          console.log(`[corrections] Logged ${correctionRows.length} field corrections for policy ${data.id}`)
+        }
+      } catch (corrError) {
+        console.error('[corrections] Error saving corrections:', corrError)
+      }
+    }
+
     return NextResponse.json({ policy: data }, { status: 201 })
   } catch (err) {
     console.error('POST /api/policies error:', err)

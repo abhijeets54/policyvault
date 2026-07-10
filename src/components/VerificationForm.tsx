@@ -5,14 +5,31 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 import type { ExtractedPolicyData, FamilyMember } from '@/lib/types'
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 
 type FormData = ExtractedPolicyData & { notes?: string | null; ai_model_used?: string }
+
+/** Fields we track for correction logging */
+const TRACKABLE_FIELDS = [
+  'holder_name', 'holder_phone', 'holder_email', 'holder_dob', 'holder_address', 'holder_pan',
+  'policy_number', 'insurer_name', 'policy_type', 'plan_name',
+  'sum_insured', 'premium_amount', 'premium_frequency', 'gst_amount', 'total_premium',
+  'issue_date', 'start_date', 'expiry_date',
+  'vehicle_number', 'vehicle_make', 'vehicle_model', 'vehicle_year', 'idv_value',
+  'engine_number', 'chassis_number', 'nominee_name', 'nominee_relation', 'death_benefit',
+  'policy_term', 'premium_paying_term',
+] as const
+
+export interface FieldCorrection {
+  field_name: string
+  ai_value: string | null
+  corrected_value: string | null
+}
 
 interface VerificationFormProps {
   extracted: ExtractedPolicyData & { ai_model_used: string }
   pdfUrl: string | null
-  onConfirm: (data: any) => Promise<void>
+  onConfirm: (data: Record<string, unknown>, corrections: FieldCorrection[]) => Promise<void>
   onCancel: () => void
   onScanAgain?: () => void   // re-runs AI extraction on same file
   isLoading?: boolean
@@ -22,19 +39,16 @@ export function VerificationForm({ extracted, pdfUrl, onConfirm, onCancel, onSca
   const [formData, setFormData] = useState<FormData>(extracted as FormData)
   const [familyMembers, setFamilyMembers] = useState<FamilyMember[]>(extracted.family_members || [])
 
-  const confidenceColors = {
-    high: 'bg-green-50 border-green-300',
-    medium: 'bg-yellow-50 border-yellow-300',
-    low: 'bg-red-50 border-red-300',
-  }
+  // Store original AI values for correction tracking
+  const originalValues = useRef<Record<string, unknown>>(
+    Object.fromEntries(
+      TRACKABLE_FIELDS.map(f => [f, (extracted as unknown as Record<string, unknown>)[f] ?? null])
+    )
+  )
 
-  const confidenceIcons = {
-    high: '🟢',
-    medium: '🟡',
-    low: '🔴',
-  }
+  const isLowConfidence = extracted.extraction_confidence === 'low' || extracted.extraction_confidence === 'medium'
 
-  const handleFieldChange = (field: string, value: any) => {
+  const handleFieldChange = (field: string, value: unknown) => {
     setFormData(prev => ({ ...prev, [field]: value }))
   }
 
@@ -46,10 +60,32 @@ export function VerificationForm({ extracted, pdfUrl, onConfirm, onCancel, onSca
     setFamilyMembers(familyMembers.filter((_, i) => i !== index))
   }
 
-  const handleFamilyMemberChange = (index: number, field: string, value: any) => {
+  const handleFamilyMemberChange = (index: number, field: string, value: unknown) => {
     const updated = [...familyMembers]
     updated[index] = { ...updated[index], [field]: value }
     setFamilyMembers(updated)
+  }
+
+  /** Compute which fields the user changed vs. the AI extraction */
+  const computeCorrections = (): FieldCorrection[] => {
+    const corrections: FieldCorrection[] = []
+    for (const field of TRACKABLE_FIELDS) {
+      const original = originalValues.current[field]
+      const current = (formData as unknown as Record<string, unknown>)[field]
+
+      // Normalize: treat empty string, undefined, null as equivalent
+      const origStr = original == null || original === '' ? null : String(original)
+      const currStr = current == null || current === '' ? null : String(current)
+
+      if (origStr !== currStr) {
+        corrections.push({
+          field_name: field,
+          ai_value: origStr,
+          corrected_value: currStr,
+        })
+      }
+    }
+    return corrections
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -61,7 +97,8 @@ export function VerificationForm({ extracted, pdfUrl, onConfirm, onCancel, onSca
       return
     }
 
-    await onConfirm({ ...formData, family_members: familyMembers })
+    const corrections = computeCorrections()
+    await onConfirm({ ...formData, family_members: familyMembers }, corrections)
   }
 
   return (
@@ -83,17 +120,23 @@ export function VerificationForm({ extracted, pdfUrl, onConfirm, onCancel, onSca
 
       {/* Right: Extracted Data Form */}
       <div className="space-y-4 overflow-y-auto max-h-[600px] pr-4">
-        {/* Confidence Banner */}
-        <Card className={`p-4 border-2 ${confidenceColors[extracted.extraction_confidence || 'medium']}`}>
-          <div className="flex items-center gap-2">
-            <span className="text-2xl">{confidenceIcons[extracted.extraction_confidence || 'medium']}</span>
+        {/* Simplified Confidence Banner */}
+        <Card className={`p-4 border-2 ${isLowConfidence ? 'bg-amber-50 border-amber-300' : 'bg-green-50 border-green-300'}`}>
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">{isLowConfidence ? '⚠️' : '✅'}</span>
             <div>
-              <p className="font-semibold">
-                {extracted.extraction_confidence === 'high' && 'High Confidence — Please verify'}
-                {extracted.extraction_confidence === 'medium' && 'Medium Confidence — Some fields may need correction'}
-                {extracted.extraction_confidence === 'low' && 'Low Confidence — Please review all fields'}
+              <p className="font-semibold text-sm">
+                {isLowConfidence
+                  ? 'Please review all fields carefully'
+                  : 'Looks good — please verify before saving'
+                }
               </p>
-
+              <p className="text-xs text-gray-500 mt-0.5">
+                {isLowConfidence
+                  ? 'The AI had difficulty reading some parts of this document.'
+                  : 'The AI extracted details with high confidence.'
+                }
+              </p>
             </div>
           </div>
         </Card>

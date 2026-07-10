@@ -3,26 +3,85 @@
 import type { ExtractedPolicyData } from '@/lib/types'
 
 // ──────────────────────────────────────────────
-// THE EXTRACTION PROMPT
+// RETRY UTILITY — exponential backoff, no npm dep
+// ──────────────────────────────────────────────
+async function withRetry<T>(
+  fn: () => Promise<T>,
+  opts: { retries?: number; baseDelay?: number; label?: string } = {}
+): Promise<T> {
+  const { retries = 2, baseDelay = 1000, label = 'operation' } = opts
+  let lastError: Error | unknown
+
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      return await fn()
+    } catch (err) {
+      lastError = err
+      if (attempt < retries) {
+        const delay = baseDelay * Math.pow(2, attempt) + Math.random() * 500
+        console.warn(
+          `[extractor] ${label} attempt ${attempt + 1} failed: ${err instanceof Error ? err.message : err}. Retrying in ${Math.round(delay)}ms...`
+        )
+        await new Promise(resolve => setTimeout(resolve, delay))
+      }
+    }
+  }
+
+  throw lastError
+}
+
+// ──────────────────────────────────────────────
+// THE EXTRACTION PROMPT — India-Specific
 // ──────────────────────────────────────────────
 const EXTRACTION_PROMPT = `
-You are an expert insurance document parser for Indian insurance policies.
+You are an expert insurance document parser specializing in INDIAN insurance policies.
 Analyze this insurance policy document carefully and extract all available information.
 
 STRICT RULES:
 1. Return ONLY valid JSON — no explanation, no markdown fences, no preamble.
 2. If a field is not found in the document, return null for that field.
-3. ALL dates must be in "YYYY-MM-DD" format. Convert from any Indian format (DD/MM/YYYY, DD-MMM-YYYY, etc.).
-4. ALL monetary amounts must be plain numbers (no ₹ sign, no commas). Example: 500000 not ₹5,00,000.
+3. ALL dates must be in "YYYY-MM-DD" format. Convert from any Indian format:
+   - DD/MM/YYYY → YYYY-MM-DD
+   - DD-MM-YYYY → YYYY-MM-DD
+   - DD-MMM-YYYY (e.g. 15-Jan-2025) → 2025-01-15
+   - DD MMM YYYY (e.g. 15 January 2025) → 2025-01-15
+   - Be careful: in India, DD/MM/YYYY is standard (day first, NOT month first).
+4. ALL monetary amounts must be plain numbers (no ₹ sign, no commas).
+   Example: 500000 not ₹5,00,000. Indian lakh format uses commas as: 5,00,000 = 500000.
 5. policy_type must be exactly one of: health, car, bike, life, home, travel, commercial, fire, marine, other.
 6. For health policies: list ALL insured family members in family_members array.
-7. For motor (car/bike) policies: extract vehicle_number carefully — it's usually a registration number like MH12AB1234.
-8. insurer_name = full official name of the insurance company.
-9. extraction_confidence: "high" if you can read everything clearly, "medium" if some parts were unclear, "low" if you struggled.
-10. extraction_notes: note anything unusual, fields that looked ambiguous, or data you are unsure about.
+7. For motor (car/bike) policies: extract vehicle_number carefully.
+   Indian vehicle registration formats: MH12AB1234, DL01C1234, KA05MN5678, TN22XY9012.
+   Pattern: [State 2 letters][District 2 digits][Series 1-2 letters][Number 1-4 digits]
+8. insurer_name = full official name. Recognize these common Indian insurers:
+   - LIC (Life Insurance Corporation of India)
+   - HDFC Life, HDFC Ergo General Insurance
+   - ICICI Prudential Life, ICICI Lombard General Insurance
+   - SBI Life Insurance, SBI General Insurance
+   - Star Health and Allied Insurance
+   - Max Life Insurance, Max Bupa (now Niva Bupa)
+   - Bajaj Allianz Life / General Insurance
+   - Tata AIG General Insurance, Tata AIA Life Insurance
+   - Kotak Mahindra Life Insurance
+   - New India Assurance, United India Insurance, National Insurance, Oriental Insurance (PSU)
+   - Care Health Insurance (formerly Religare Health)
+   - Aditya Birla Health / Sun Life Insurance
+   - Reliance General Insurance / Nippon Life
+   - Future Generali, Edelweiss Tokio, Bharti AXA (now merged into ICICI)
+   - Chola MS General Insurance
+   - Digit Insurance, Acko General Insurance, Go Digit (new-age)
+   - Royal Sundaram General Insurance
+9. PAN format: 5 uppercase letters + 4 digits + 1 uppercase letter (e.g. ABCDE1234F).
+10. GST on insurance premiums in India is 18% for health and motor, 4.5% for term life.
+    If total_premium is present but gst_amount is missing, you can estimate:
+    gst_amount ≈ premium_amount × 0.18 (health/motor) or × 0.045 (life).
+    If premium_amount + gst_amount ≈ total_premium, that confirms correctness.
+11. extraction_confidence: "high" if you can read everything clearly, "medium" if some parts were unclear, "low" if you struggled.
+12. extraction_notes: note anything unusual, fields that looked ambiguous, or data you are unsure about.
 
 RETURN THIS EXACT JSON STRUCTURE:
 {
+  "referred_by": null,
   "holder_name": "Full name of primary insured person",
   "holder_phone": "10-digit mobile number or null",
   "holder_email": "email or null",
@@ -84,7 +143,36 @@ function parseExtractionResult(text: string): ExtractedPolicyData {
 }
 
 // ──────────────────────────────────────────────
-// PRIMARY: Groq Llama 4 Scout (text extraction)
+// GEMINI 2.5 Flash (PRIMARY — handles scanned PDFs natively)
+// ──────────────────────────────────────────────
+async function extractWithGemini(pdfBuffer: Buffer): Promise<ExtractedPolicyData> {
+  const apiKey = process.env.GEMINI_API_KEY
+  if (!apiKey) throw new Error('GEMINI_API_KEY is not set')
+
+  const { GoogleGenAI } = await import('@google/genai')
+  const ai = new GoogleGenAI({ apiKey })
+
+  const response = await ai.models.generateContent({
+    model: 'gemini-2.5-flash',
+    contents: [
+      { text: EXTRACTION_PROMPT },
+      {
+        inlineData: {
+          mimeType: 'application/pdf',
+          data: pdfBuffer.toString('base64'),
+        },
+      },
+    ],
+    config: { temperature: 0.1, maxOutputTokens: 4096 },
+  })
+
+  const text = response.text
+  if (!text) throw new Error('Gemini returned empty response')
+  return parseExtractionResult(text)
+}
+
+// ──────────────────────────────────────────────
+// GROQ Llama 4 Scout (FALLBACK — text-only, cannot handle scans)
 // ──────────────────────────────────────────────
 async function extractWithGroq(pdfBuffer: Buffer): Promise<ExtractedPolicyData> {
   const apiKey = process.env.GROQ_API_KEY
@@ -129,61 +217,31 @@ async function extractWithGroq(pdfBuffer: Buffer): Promise<ExtractedPolicyData> 
 }
 
 // ──────────────────────────────────────────────
-// PRIMARY: Gemini 2.5 Flash via @google/genai SDK
+// Check if a PDF has extractable text (not image-only)
 // ──────────────────────────────────────────────
-async function extractWithGemini(pdfBuffer: Buffer): Promise<ExtractedPolicyData> {
-  const apiKey = process.env.GEMINI_API_KEY
-  if (!apiKey) throw new Error('GEMINI_API_KEY is not set')
-
-  const { GoogleGenAI } = await import('@google/genai')
-  const ai = new GoogleGenAI({ apiKey })
-
-  const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash',
-    contents: [
-      { text: EXTRACTION_PROMPT },
-      {
-        inlineData: {
-          mimeType: 'application/pdf',
-          data: pdfBuffer.toString('base64'),
-        },
-      },
-    ],
-    config: { temperature: 0.1, maxOutputTokens: 4096 },
-  })
-
-  const text = response.text
-  if (!text) throw new Error('Gemini returned empty response')
-  return parseExtractionResult(text)
+async function pdfHasText(pdfBuffer: Buffer): Promise<boolean> {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const pdfParse = require('pdf-parse') as (buf: Buffer) => Promise<{ text: string }>
+    const pdfData = await pdfParse(pdfBuffer)
+    const text = pdfData.text.trim()
+    // Consider it "has text" if there are at least 50 chars of meaningful content
+    return text.length >= 50
+  } catch {
+    return false
+  }
 }
 
 // ──────────────────────────────────────────────
 // MAIN EXPORT
-// Strategy: Size-based routing
-// If PDF > 4MB: Try Groq first, then Gemini
-// If PDF <= 4MB: Try Gemini first, then Groq
+// Strategy: Gemini ALWAYS first (handles scans natively)
+//           Groq fallback ONLY if Gemini fails AND PDF has text
 // ──────────────────────────────────────────────
 export async function extractPolicyFromPDF(
   pdfBuffer: Buffer
 ): Promise<ExtractedPolicyData & { ai_model_used: string }> {
   const sizeMb = pdfBuffer.length / (1024 * 1024)
-  const isLargePdf = sizeMb > 4.0 // Threshold set to 4 MB
-
-  console.log(`[extractor] PDF size: ${sizeMb.toFixed(2)} MB. isLargePdf: ${isLargePdf}`)
-
-  const runGemini = async () => {
-    console.log('[extractor] Trying Gemini 2.5 Flash...')
-    const result = await extractWithGemini(pdfBuffer)
-    console.log('[extractor] Gemini succeeded')
-    return { ...result, ai_model_used: 'gemini-2.5-flash' }
-  }
-
-  const runGroq = async () => {
-    console.log('[extractor] Trying Groq Llama 4 Scout...')
-    const result = await extractWithGroq(pdfBuffer)
-    console.log('[extractor] Groq succeeded')
-    return { ...result, ai_model_used: 'groq-llama-4-scout' }
-  }
+  console.log(`[extractor] PDF size: ${sizeMb.toFixed(2)} MB`)
 
   const defaultErrorResponse = {
     referred_by: null, holder_name: null, holder_phone: null, holder_email: null,
@@ -197,38 +255,51 @@ export async function extractPolicyFromPDF(
     chassis_number: null, family_members: [], sum_insured_per_member: null,
     nominee_name: null, nominee_relation: null, death_benefit: null,
     policy_term: null, premium_paying_term: null,
-    extraction_confidence: 'low',
-    extraction_notes: 'Automatic extraction failed for both models. Please fill in the details manually.',
+    extraction_confidence: 'low' as const,
+    extraction_notes: 'Automatic extraction failed. Please fill in the details manually.',
     ai_model_used: 'none',
   }
 
-  if (isLargePdf) {
-    // Large PDF: Groq first
-    try {
-      return await runGroq()
-    } catch (groqError) {
-      console.error('[extractor] Groq failed:', groqError instanceof Error ? groqError.message : groqError)
-      try {
-        console.log('[extractor] Falling back to Gemini...')
-        return await runGemini()
-      } catch (geminiError) {
-        console.error('[extractor] Gemini fallback failed:', geminiError instanceof Error ? geminiError.message : geminiError)
-        return defaultErrorResponse as ExtractedPolicyData & { ai_model_used: string }
-      }
-    }
-  } else {
-    // Small PDF: Gemini first
-    try {
-      return await runGemini()
-    } catch (geminiError) {
-      console.error('[extractor] Gemini failed:', geminiError instanceof Error ? geminiError.message : geminiError)
-      try {
-        console.log('[extractor] Falling back to Groq...')
-        return await runGroq()
-      } catch (groqError) {
-        console.error('[extractor] Groq fallback failed:', groqError instanceof Error ? groqError.message : groqError)
-        return defaultErrorResponse as ExtractedPolicyData & { ai_model_used: string }
-      }
-    }
+  // ── Step 1: Always try Gemini first (with retry) ──
+  try {
+    console.log('[extractor] Trying Gemini 2.5 Flash (primary)...')
+    const result = await withRetry(() => extractWithGemini(pdfBuffer), {
+      retries: 2,
+      baseDelay: 1000,
+      label: 'Gemini',
+    })
+    console.log('[extractor] Gemini succeeded')
+    return { ...result, ai_model_used: 'gemini-2.5-flash' }
+  } catch (geminiError) {
+    console.error(
+      '[extractor] Gemini failed after retries:',
+      geminiError instanceof Error ? geminiError.message : geminiError
+    )
   }
+
+  // ── Step 2: Fallback to Groq ONLY if the PDF has extractable text ──
+  const hasText = await pdfHasText(pdfBuffer)
+  if (!hasText) {
+    console.warn('[extractor] PDF has no extractable text — Groq cannot process it. Returning empty.')
+    return defaultErrorResponse as ExtractedPolicyData & { ai_model_used: string }
+  }
+
+  try {
+    console.log('[extractor] Falling back to Groq Llama 4 Scout...')
+    const result = await withRetry(() => extractWithGroq(pdfBuffer), {
+      retries: 1,
+      baseDelay: 1000,
+      label: 'Groq',
+    })
+    console.log('[extractor] Groq fallback succeeded')
+    return { ...result, ai_model_used: 'groq-llama-4-scout' }
+  } catch (groqError) {
+    console.error(
+      '[extractor] Groq fallback failed:',
+      groqError instanceof Error ? groqError.message : groqError
+    )
+  }
+
+  // ── Both failed ──
+  return defaultErrorResponse as ExtractedPolicyData & { ai_model_used: string }
 }
